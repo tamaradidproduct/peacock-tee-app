@@ -46,9 +46,11 @@
 
   /* ── Chart page: lock viewport, only .chart-vp scrolls ── */
   body.chart-page {
-    height: 100vh;            /* fallback for older browsers */
-    height: 100dvh;          /* match the *visible* area so the bottom dock
-                                isn't hidden behind mobile browser toolbars */
+    height: 100vh;             /* fallback for older browsers */
+    height: 100dvh;            /* better fallback where supported */
+    height: var(--app-h, 100dvh); /* authoritative: real visible px from JS,
+                                     so the bottom dock is never hidden behind
+                                     mobile browser toolbars / gesture bars */
     overflow: hidden; padding-bottom: 0;
     display: flex; flex-direction: column;
   }
@@ -1132,6 +1134,21 @@ if ('serviceWorker' in navigator) {
     window.location.reload();
   });
 }
+// Lock the chart screen to the *actually visible* height. Mobile browsers
+// (and some that mis-report 100dvh) count the area behind their toolbars, so
+// we trust window.innerHeight and refresh it whenever the viewport changes.
+function setAppHeight() {
+  const h = (window.visualViewport && window.visualViewport.height) || window.innerHeight;
+  document.documentElement.style.setProperty('--app-h', h + 'px');
+  if (PHASES[cur] && PHASES[cur].hasChart) {
+    requestAnimationFrame(() => requestAnimationFrame(scrollChartToCurrent));
+  }
+}
+setAppHeight();
+window.addEventListener('resize', setAppHeight);
+window.addEventListener('orientationchange', setAppHeight);
+if (window.visualViewport) window.visualViewport.addEventListener('resize', setAppHeight);
+
 load();
 render();
 
