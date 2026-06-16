@@ -45,17 +45,18 @@
   }
 
   /* ── Chart page: lock viewport, only .chart-vp scrolls ── */
-  body.chart-page {
-    height: 100vh;             /* fallback for very old browsers */
-    height: 100svh;            /* smallest viewport: always fits within the
-                                  screen even while the mobile browser toolbar
-                                  is shown, so the bottom dock is never cut off */
-    overflow: hidden; padding-bottom: 0;
-    display: flex; flex-direction: column;
+  /* Pin the header (top) and dock (bottom) with fixed positioning — the one
+     layout that reliably stays within the visible area on mobile (incl. Chrome
+     Custom Tabs). The scrolling middle is positioned between them via JS, so we
+     don't depend on any viewport-height unit (vh/dvh/svh all misbehave here). */
+  body.chart-page { height: 100svh; overflow: hidden; padding-bottom: 0; }
+  body.chart-page .header {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+    padding: 0.55rem 1.25rem 0.5rem;
   }
-  body.chart-page .header { position: static; flex: 0 0 auto; padding: 0.55rem 1.25rem 0.5rem; }
   body.chart-page .content {
-    flex: 1; min-height: 0; overflow: hidden; padding: 0;
+    position: fixed; left: 0; right: 0; top: 0; bottom: 0; /* top/bottom set by JS */
+    overflow: hidden; padding: 0;
     display: flex; flex-direction: column;
   }
   body.chart-page #phase-content { flex: 1; min-height: 0; display: flex; flex-direction: column; }
@@ -346,7 +347,8 @@
   /* ── Chart dock — row counter + nav, fixed at bottom of chart screen ── */
   .chart-dock { display: none; }
   body.chart-page .chart-dock {
-    display: flex; flex-direction: column; flex: 0 0 auto;
+    position: fixed; bottom: 0; left: 0; right: 0; z-index: 100;
+    display: flex; flex-direction: column;
     background: var(--bg); border-top: 1px solid var(--border);
     padding-bottom: env(safe-area-inset-bottom);
   }
@@ -1035,7 +1037,7 @@ function render() {
 
   if (isChart) {
     renderChartDock();
-    requestAnimationFrame(() => requestAnimationFrame(scrollChartToCurrent));
+    requestAnimationFrame(() => requestAnimationFrame(syncChartLayout));
     wakeUI();
   } else {
     document.body.classList.remove('chart-idle');
@@ -1048,12 +1050,27 @@ const UI_IDLE_DELAY = 2500;
 const PANEL_ANIM_MS = 420;
 let uiIdleTimer = null;
 
-// Keep the current row centred while the panels (and therefore the chart
-// viewport) animate open/closed — re-centre every frame for the duration.
-function recenterChartAnimated() {
+// Position the scrolling middle between the fixed header and fixed dock by
+// measuring their live heights, then re-centre the current row. The header and
+// dock are position:fixed, so they always sit at the real top/bottom of the
+// visible area — no viewport-height unit involved.
+function syncChartLayout() {
+  if (!document.body.classList.contains('chart-page')) return;
+  const header  = document.querySelector('.header');
+  const dock    = document.getElementById('chart-dock');
+  const content = document.querySelector('.content');
+  if (!content) return;
+  content.style.top    = (header ? header.getBoundingClientRect().height : 0) + 'px';
+  content.style.bottom = (dock   ? dock.getBoundingClientRect().height   : 0) + 'px';
+  scrollChartToCurrent('auto');
+}
+
+// Keep the layout in sync while the panels (and thus the header/dock heights)
+// animate open/closed — re-measure every frame for the duration.
+function syncChartLayoutAnimated() {
   const start = performance.now();
   (function step(now) {
-    scrollChartToCurrent('auto');
+    syncChartLayout();
     if (now - start < PANEL_ANIM_MS) requestAnimationFrame(step);
   })(start);
 }
@@ -1062,14 +1079,14 @@ function scheduleIdle() {
   clearTimeout(uiIdleTimer);
   uiIdleTimer = setTimeout(() => {
     document.body.classList.add('chart-idle');
-    recenterChartAnimated();
+    syncChartLayoutAnimated();
   }, UI_IDLE_DELAY);
 }
 
 function wakeUI() {
   const wasIdle = document.body.classList.contains('chart-idle');
   document.body.classList.remove('chart-idle');
-  if (wasIdle) recenterChartAnimated();
+  if (wasIdle) syncChartLayoutAnimated();
   scheduleIdle();
 }
 
@@ -1133,11 +1150,11 @@ if ('serviceWorker' in navigator) {
     window.location.reload();
   });
 }
-// Re-centre the active row when the viewport changes (rotation, toolbar
-// show/hide, etc.). Height itself is handled in CSS via 100svh.
+// Re-fit the chart between the fixed bars when the viewport changes (rotation,
+// toolbar show/hide, etc.).
 function onViewportChange() {
   if (PHASES[cur] && PHASES[cur].hasChart) {
-    requestAnimationFrame(() => requestAnimationFrame(scrollChartToCurrent));
+    requestAnimationFrame(() => requestAnimationFrame(syncChartLayout));
   }
 }
 window.addEventListener('resize', onViewportChange);
