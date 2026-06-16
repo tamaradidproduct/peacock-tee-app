@@ -1,0 +1,5 @@
+# Peacock Tee — static single-page PWA, no build step.
+# Auto-deploys on every push to `main`.
+[build]
+  command = ""
+  publish = "."
