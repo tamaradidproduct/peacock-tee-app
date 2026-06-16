@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Peacock Tee">
@@ -46,7 +46,10 @@
 
   /* ── Chart page: lock viewport, only .chart-vp scrolls ── */
   body.chart-page {
-    height: 100vh; overflow: hidden; padding-bottom: 0;
+    height: 100vh;            /* fallback for older browsers */
+    height: 100dvh;          /* match the *visible* area so the bottom dock
+                                isn't hidden behind mobile browser toolbars */
+    overflow: hidden; padding-bottom: 0;
     display: flex; flex-direction: column;
   }
   body.chart-page .header { position: static; flex: 0 0 auto; padding: 0.55rem 1.25rem 0.5rem; }
@@ -344,6 +347,7 @@
   body.chart-page .chart-dock {
     display: flex; flex-direction: column; flex: 0 0 auto;
     background: var(--bg); border-top: 1px solid var(--border);
+    padding-bottom: env(safe-area-inset-bottom);
   }
   .chart-dock .nav-btns {
     position: static;

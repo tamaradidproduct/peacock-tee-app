@@ -1,4 +1,4 @@
-const CACHE = 'peacock-tee-v6';
+const CACHE = 'peacock-tee-v7';
 const ASSETS = ['/', '/index.html', '/manifest.json', '/icon-192.png', '/icon-512.png'];
 
 self.addEventListener('install', e => {
