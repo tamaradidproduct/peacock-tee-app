@@ -44,12 +44,59 @@
     padding-bottom: 82px;
   }
 
+  /* ── Chart page: lock viewport, only .chart-vp scrolls ── */
+  body.chart-page {
+    height: 100vh; overflow: hidden; padding-bottom: 0;
+    display: flex; flex-direction: column;
+  }
+  body.chart-page .header { position: static; flex: 0 0 auto; padding: 0.55rem 1.25rem 0.5rem; }
+  body.chart-page .content {
+    flex: 1; min-height: 0; overflow: hidden; padding: 0;
+    display: flex; flex-direction: column;
+  }
+  body.chart-page #phase-content { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+  body.chart-page .chart-tracker {
+    flex: 1; min-height: 0; margin: 0; border: none;
+    display: flex; flex-direction: column;
+  }
+  /* The stage holds the scrolling viewport + the floating recenter button.
+     It flexes to fill whatever the panels leave behind — growing when they
+     collapse, shrinking when they expand. */
+  body.chart-page .chart-stage {
+    flex: 1; min-height: 0; position: relative;
+    display: flex; flex-direction: column;
+  }
+  body.chart-page .chart-vp { flex: 1; min-height: 0; height: auto; }
+
+  /* Top/bottom panels are real layout items that collapse on idle */
+  .chart-overlay-top, .chart-overlay-bottom {
+    flex: 0 0 auto; background: var(--card); overflow: hidden;
+  }
+  .chart-overlay-top { border-bottom: 1px solid var(--border); }
+  .chart-overlay-bottom { border-top: 1px solid var(--border); }
+
+  /* Floating recenter button — anchored to the bottom-right of the chart area */
+  .chart-recenter {
+    display: none;
+    position: absolute; right: 14px; bottom: 14px; z-index: 15;
+    width: 44px; height: 44px; border-radius: 50%;
+    border: 1px solid var(--border); background: var(--card);
+    color: var(--accent); cursor: pointer;
+    align-items: center; justify-content: center;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.12);
+    transition: background 0.15s, transform 0.15s;
+  }
+  body.chart-page .chart-recenter { display: flex; }
+  .chart-recenter:active { background: var(--bg); transform: scale(0.92); }
+
   /* ── Header ── */
   .header {
     background: var(--card);
     border-bottom: 1px solid var(--border);
     padding: 1rem 1.25rem 0.875rem;
     position: sticky; top: 0; z-index: 100;
+    max-height: 300px; overflow: hidden;
+    transition: max-height 0.35s ease, opacity 0.25s ease, padding 0.35s ease;
   }
   .header-top { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 0.75rem; }
   .header h1 {
@@ -65,8 +112,24 @@
   .progress-track { flex: 1; height: 4px; background: var(--border); border-radius: 2px; overflow: hidden; }
   .progress-fill { height: 100%; background: var(--accent); border-radius: 2px; transition: width 0.4s ease; }
 
-  /* ── Phase tabs ── */
-  .phase-scroll { overflow-x: auto; padding: 0.875rem 1.25rem 0; display: flex; gap: 6px; scrollbar-width: none; }
+  /* ── Phase switch control + tabs ── */
+  .phase-name-row { display: flex; align-items: center; gap: 8px; }
+  .phase-switch-btn {
+    display: flex; align-items: center; justify-content: center;
+    width: 24px; height: 24px; border-radius: 50%;
+    border: 1px solid var(--border); background: var(--card);
+    color: var(--muted); cursor: pointer; flex-shrink: 0; padding: 0;
+    transition: background 0.15s;
+  }
+  .phase-switch-btn:active { background: var(--bg); }
+  .phase-switch-btn .chevron { transition: transform 0.2s; }
+  .phase-switch-btn.open .chevron { transform: rotate(180deg); }
+
+  .phase-scroll {
+    overflow-x: auto; margin-top: 10px; padding-bottom: 2px;
+    display: flex; gap: 6px; scrollbar-width: none;
+  }
+  .phase-scroll.collapsed { display: none; }
   .phase-scroll::-webkit-scrollbar { display: none; }
   .phase-tab {
     white-space: nowrap; font-size: 12px; font-weight: 500; padding: 6px 13px;
@@ -81,9 +144,19 @@
 
   /* ── Content ── */
   .content { padding: 1.25rem; }
-  .phase-header { margin-bottom: 1rem; }
+  .phase-header {
+    margin-bottom: 1rem;
+    max-height: 300px; overflow: hidden;
+    transition: max-height 0.35s ease, opacity 0.25s ease, margin 0.35s ease;
+  }
   .phase-name { font-family: Georgia, serif; font-size: 1.35rem; font-weight: 400; color: var(--text); margin-bottom: 2px; }
-  .phase-desc { font-size: 12px; color: var(--muted); }
+  .phase-desc {
+    font-size: 12px; color: var(--muted);
+    max-height: 40px; overflow: hidden;
+    transition: max-height 0.35s ease, opacity 0.25s ease;
+  }
+  /* In chart mode the phase header is the minimized "grab bar" inside the top panel */
+  body.chart-page .phase-header { margin: 0; padding: 8px 14px 7px; }
 
   .note {
     background: #ede9f5; border-left: 3px solid #6b5b8a;
@@ -154,9 +227,11 @@
 
   /* ── Chart Tracker ── */
   .chart-tracker {
-    background: var(--card); border: 1px solid var(--border);
-    border-radius: var(--radius); overflow: hidden; margin-top: 12px;
+    background: var(--card);
+    border-top: 1px solid var(--border); border-bottom: 1px solid var(--border);
+    overflow: hidden; margin: 12px -1.25rem 0;
   }
+
 
   .chart-vp {
     height: 380px;
@@ -214,8 +289,10 @@
   /* Chart zoom bar */
   .chart-ctrl-bar {
     display: flex; align-items: center; justify-content: space-between;
-    padding: 7px 12px 6px; border-bottom: 1px solid var(--border);
+    padding: 5px 12px; border-top: 1px solid var(--border);
     font-size: 11px; color: var(--muted);
+    max-height: 200px; overflow: hidden;
+    transition: max-height 0.35s ease, opacity 0.25s ease, padding 0.35s ease, border-color 0.35s ease;
   }
   .zoom-btns { display: flex; gap: 5px; }
   .zoom-btn {
@@ -229,10 +306,52 @@
   /* Chart legend */
   .chart-legend {
     border-top: 1px solid var(--border);
-    padding: 8px 12px 10px;
+    padding: 6px 12px 7px;
     display: flex; flex-wrap: wrap; gap: 8px 14px;
     font-size: 10px; color: var(--muted);
+    max-height: 200px; overflow: hidden;
+    transition: max-height 0.35s ease, opacity 0.25s ease, padding 0.35s ease, border-color 0.35s ease;
   }
+
+  /* Chart confirm step (merged "Count to confirm 253 sts") */
+  .chart-confirm-step {
+    display: flex; align-items: center; gap: 12px;
+    padding: 10px 14px; border-top: 1px solid var(--border);
+    cursor: pointer; -webkit-user-select: none; user-select: none;
+    transition: background 0.15s, max-height 0.35s ease, opacity 0.25s ease, padding 0.35s ease, border-color 0.35s ease;
+    max-height: 200px; overflow: hidden;
+  }
+  .chart-confirm-step:active { background: var(--bg); }
+  .chart-confirm-step.done { background: var(--done-bg); }
+  .chart-confirm-step.done .step-circle { background: var(--accent); border-color: var(--accent); }
+  .chart-confirm-step.done .step-circle svg { display: block; }
+  .chart-confirm-step.done .step-text { color: var(--done-text); text-decoration: line-through; text-decoration-color: var(--accent-mid); }
+
+  /* ── Idle: collapse panels, leaving the minimized top bar (phase name +
+        chevron) as the affordance to bring everything back ── */
+  body.chart-idle .header,
+  body.chart-idle .phase-desc,
+  body.chart-idle .chart-ctrl-bar,
+  body.chart-idle .chart-confirm-step,
+  body.chart-idle .chart-dock .nav-btns {
+    max-height: 0; opacity: 0;
+    padding-top: 0; padding-bottom: 0; margin-top: 0; margin-bottom: 0;
+    border-color: transparent;
+  }
+
+  /* ── Chart dock — row counter + nav, fixed at bottom of chart screen ── */
+  .chart-dock { display: none; }
+  body.chart-page .chart-dock {
+    display: flex; flex-direction: column; flex: 0 0 auto;
+    background: var(--bg); border-top: 1px solid var(--border);
+  }
+  .chart-dock .nav-btns {
+    position: static;
+    padding: 8px 12px 10px;
+    max-height: 120px; overflow: hidden;
+    transition: max-height 0.35s ease, opacity 0.25s ease, padding 0.35s ease, border-color 0.35s ease;
+  }
+  .chart-dock .nav-btn { padding: 11px; }
   .leg { display: flex; align-items: center; gap: 4px; }
   .leg-cc {
     width: 14px; height: 14px;
@@ -243,15 +362,26 @@
   }
   .leg-cc-e { background: var(--ch-empty-bg); border-color: transparent; }
 
+  /* Chart row recap — plain-language stitches for the current row */
+  .chart-recap { padding: 8px 16px 9px; }
+  .recap-head {
+    font-size: 10px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase;
+    color: var(--muted); margin-bottom: 3px;
+  }
+  .recap-body {
+    font-size: 14px; line-height: 1.45; color: var(--text);
+    font-variant-numeric: tabular-nums;
+  }
+
   /* Chart footer */
   .chart-footer {
     display: flex; align-items: center;
     border-top: 1px solid var(--border);
-    padding: 14px 16px; gap: 0;
+    padding: 8px 16px; gap: 0;
   }
   .cc-ctrl {
-    width: 48px; height: 48px; border-radius: 50%; border: none;
-    font-size: 28px; font-weight: 300;
+    width: 44px; height: 44px; border-radius: 50%; border: none;
+    font-size: 26px; font-weight: 300;
     display: flex; align-items: center; justify-content: center;
     cursor: pointer; flex-shrink: 0; transition: background 0.12s;
     line-height: 1;
@@ -261,9 +391,9 @@
   .cc-plus { background: var(--ch-blue); color: #fff; }
   .cc-plus:active { background: #1d4ed8; }
 
-  .cc-stats { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 0 12px; }
+  .cc-stats { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 1px; padding: 0 12px; }
   .cc-stat-lbl { font-size: 11px; color: var(--muted); letter-spacing: 0.02em; }
-  .cc-cur-val { font-size: 32px; font-weight: 700; color: var(--ch-blue); line-height: 1.1; }
+  .cc-cur-val { font-size: 28px; font-weight: 700; color: var(--ch-blue); line-height: 1.1; }
   .cc-total-lbl { font-size: 11px; color: var(--muted); }
 
   /* ── Update banner ── */
@@ -298,11 +428,11 @@
   </div>
 </div>
 
-<div class="phase-scroll" id="phase-tabs"></div>
-
 <div class="content">
   <div id="phase-content"></div>
 </div>
+
+<div class="chart-dock" id="chart-dock"></div>
 
 <script>
 // ─────────────────────────────────────────────
@@ -458,7 +588,6 @@ const PHASES = [
     id:'chart', name:'Yoke chart', desc:'Chart B · 4 mm needle · 44 rows',
     hasChart: true,
     steps:[
-      {id:'ch1', text:'Work Chart B in the round'},
       {id:'ch2', text:'Count to confirm 253 sts', postChart: true},
     ]
   },
@@ -495,6 +624,7 @@ const PHASES = [
 
 const TOTAL_STEPS = PHASES.reduce((a,p) => a + p.steps.length, 0);
 let cur = 0;
+let phaseNavOpen = false;
 let state = {}, ctrs = {}, chartCurrentRow = 1, cellSz = 16;
 
 // ─────────────────────────────────────────────
@@ -547,19 +677,23 @@ function stitchCell(type) {
   return `<div class="cc">${sym ? `<span class="cc-sym">${sym}</span>` : ''}</div>`;
 }
 
-function buildChartTracker() {
+function buildChartTracker(confirmStep, phaseHeaderHtml) {
   let html = '<div class="chart-tracker">';
 
-  // Zoom + hint bar
+  // Top panel: phase header (minimized grab bar when idle) + hint/zoom bar
+  html += `<div class="chart-overlay-top" id="chart-overlay-top">`;
+  html += phaseHeaderHtml;
   html += `<div class="chart-ctrl-bar">
-    <span>Read right → left · bottom to top</span>
+    <span>Work Chart B in the round · read right → left, bottom to top</span>
     <div class="zoom-btns">
       <button class="zoom-btn" onclick="resizeChart(-2)">A−</button>
       <button class="zoom-btn" onclick="resizeChart(2)">A+</button>
     </div>
   </div>`;
+  html += '</div>';
 
-  // Viewport + grid
+  // Stage: the scrolling chart viewport + floating recenter button
+  html += '<div class="chart-stage">';
   html += '<div class="chart-vp" id="chart-vp"><div class="chart-inner" id="chart-inner">';
 
   // Render rows top-to-bottom visually (row 44 at top, row 1 at bottom)
@@ -581,8 +715,17 @@ function buildChartTracker() {
   }
 
   html += '</div></div>'; // chart-inner + chart-vp
+  html += `<button class="chart-recenter" onclick="centerOnCurrentRow()" aria-label="Center on current row">
+    <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+      <circle cx="9" cy="9" r="3" fill="currentColor"/>
+      <circle cx="9" cy="9" r="6.5" stroke="currentColor" stroke-width="1.5"/>
+      <path d="M9 0.5V3M9 15v2.5M17.5 9H15M3 9H0.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+    </svg>
+  </button>`;
+  html += '</div>'; // chart-stage
 
-  // Legend
+  // Bottom panel: legend + merged "Count to confirm 253 sts" step
+  html += `<div class="chart-overlay-bottom" id="chart-overlay-bottom">`;
   html += `<div class="chart-legend">
     <div class="leg"><div class="leg-cc"></div>knit</div>
     <div class="leg"><div class="leg-cc" style="color:var(--ch-def-symbol)">${SYMS.P}</div>purl</div>
@@ -592,8 +735,86 @@ function buildChartTracker() {
     <div class="leg"><div class="leg-cc" style="color:var(--ch-def-symbol)">${SYMS.M1}</div>M1</div>
     <div class="leg"><div class="leg-cc leg-cc-e"></div>no stitch</div>
   </div>`;
+  if (confirmStep) {
+    const done = state[confirmStep.id];
+    html += `<div class="chart-confirm-step ${done ? 'done' : ''}" onclick="toggleStep('${confirmStep.id}')">
+      <div class="step-circle">${CHECK_SVG}</div>
+      <div class="step-text">${confirmStep.text}</div>
+    </div>`;
+  }
+  html += '</div>';
 
-  // Footer controls
+  html += '</div>'; // chart-tracker
+  return html;
+}
+
+function centerOnCurrentRow() {
+  scrollChartToCurrent('smooth');
+}
+
+// ─────────────────────────────────────────────
+// ROW RECAP — plain-language summary of the stitches in a row.
+// The chart is read right → left, so we reverse the stored (left → right)
+// cells, drop the no-stitch padding, run-length encode, then collapse any
+// consecutive repeating block into "*…* rep N times".
+// ─────────────────────────────────────────────
+const STITCH_ABBR = { K: 'k', P: 'p', YO: 'yo', K2: 'k2tog', SK: 'ssk', M1: 'm1' };
+
+function rleStitches(types) {
+  const out = [];
+  for (let i = 0; i < types.length; ) {
+    let j = i;
+    while (j < types.length && types[j] === types[i]) j++;
+    const n = j - i, t = types[i];
+    if (t === 'K' || t === 'P') out.push(STITCH_ABBR[t] + n);
+    else out.push(n > 1 ? STITCH_ABBR[t] + ' ×' + n : STITCH_ABBR[t]);
+    i = j;
+  }
+  return out;
+}
+
+function collapseRepeats(tokens) {
+  const out = [];
+  for (let i = 0; i < tokens.length; ) {
+    let best = null;
+    const maxLen = Math.floor((tokens.length - i) / 2);
+    for (let L = 2; L <= maxLen; L++) {
+      let reps = 1;
+      while (i + (reps + 1) * L <= tokens.length) {
+        let match = true;
+        for (let k = 0; k < L; k++) {
+          if (tokens[i + k] !== tokens[i + reps * L + k]) { match = false; break; }
+        }
+        if (!match) break;
+        reps++;
+      }
+      if (reps >= 2 && (!best || reps * L > best.reps * best.len)) best = { len: L, reps };
+    }
+    if (best) {
+      out.push(`*${tokens.slice(i, i + best.len).join(', ')}* rep ${best.reps} times`);
+      i += best.len * best.reps;
+    } else {
+      out.push(tokens[i]);
+      i++;
+    }
+  }
+  return out;
+}
+
+function rowRecap(row) {
+  const types = CHART_B[row - 1].filter(t => t !== 'E').reverse();
+  if (!types.length) return '';
+  return collapseRepeats(rleStitches(types)).join(', ');
+}
+
+function recapHtml(row) {
+  return `<div class="recap-head">Repeat in the round · Row ${row}</div>
+    <div class="recap-body">${rowRecap(row)}</div>`;
+}
+
+function renderChartDock() {
+  const dock = document.getElementById('chart-dock');
+  let html = `<div class="chart-recap" id="chart-recap">${recapHtml(chartCurrentRow)}</div>`;
   html += `<div class="chart-footer">
     <button class="cc-ctrl cc-minus" onclick="changeChartRow(-1)">−</button>
     <div class="cc-stats">
@@ -604,8 +825,13 @@ function buildChartTracker() {
     <button class="cc-ctrl cc-plus" onclick="changeChartRow(1)">+</button>
   </div>`;
 
-  html += '</div>'; // chart-tracker
-  return html;
+  html += '<div class="nav-btns">';
+  if (cur > 0) html += `<button class="nav-btn" onclick="go(${cur - 1})">← Back</button>`;
+  if (cur < PHASES.length - 1) html += `<button class="nav-btn primary" onclick="go(${cur + 1})">Next →</button>`;
+  else html += `<button class="nav-btn primary" onclick="alert('Your Peacock Tee is finished! 🎉')">Finished! 🎉</button>`;
+  html += '</div>';
+
+  dock.innerHTML = html;
 }
 
 // ─────────────────────────────────────────────
@@ -613,9 +839,10 @@ function buildChartTracker() {
 // ─────────────────────────────────────────────
 function getRowH() { return cellSz + 4; } // must match .crow height in CSS (var(--cell-sz) + 4px)
 
-function scrollChartToCurrent() {
-  // On initial render, scroll so the current row is visible at the bottom half
-  // (row 1 starts at the bottom; centering kicks in once the user advances past the midpoint)
+function scrollChartToCurrent(behavior) {
+  // Centre the current row in the chart viewport. The viewport itself grows
+  // and shrinks as the panels collapse/expand, so a plain centre is enough —
+  // the visible area is always exactly the space left by the panels.
   const vp = document.getElementById('chart-vp');
   const inner = document.getElementById('chart-inner');
   if (!vp || !inner) return;
@@ -623,16 +850,17 @@ function scrollChartToCurrent() {
   const vpH = vp.clientHeight;
   const ROW_H = getRowH();
   const visIdx = CHART_TOTAL - chartCurrentRow; // row 44 = index 0 (top), row 1 = index 43 (bottom)
-  const rowTop = 8 + visIdx * ROW_H;
-  const target = rowTop - vpH / 2 + ROW_H / 2;
+  const padTop = parseFloat(getComputedStyle(inner).paddingTop) || 8;
+  const rowCenter = padTop + visIdx * ROW_H + ROW_H / 2;
+  const target = rowCenter - vpH / 2;
   const maxScroll = inner.scrollHeight - vpH;
 
-  vp.scrollTo({ top: Math.max(0, Math.min(maxScroll, target)), behavior: 'instant' });
+  vp.scrollTo({ top: Math.max(0, Math.min(maxScroll, target)), behavior: behavior || 'instant' });
 }
 
 function smartScrollChart(rowEl, delta) {
-  // Scroll the chart viewport to keep the active row centered —
-  // but only once the row reaches the viewport midpoint in the direction of travel.
+  // Keep the active row centered in the viewport once it reaches the midpoint
+  // in the direction of travel.
   // Going up (+): track once row hits the upper half.
   // Going down (−): track once row hits the lower half.
   if (!rowEl) return;
@@ -641,12 +869,12 @@ function smartScrollChart(rowEl, delta) {
 
   const vpRect = vp.getBoundingClientRect();
   const rowRect = rowEl.getBoundingClientRect();
-  const vpCenterY = vpRect.top + vpRect.height / 2;
+  const centerY = vpRect.top + vpRect.height / 2;
   const rowCenterY = rowRect.top + rowRect.height / 2;
 
-  const shouldScroll = delta > 0 ? rowCenterY <= vpCenterY : rowCenterY >= vpCenterY;
+  const shouldScroll = delta > 0 ? rowCenterY <= centerY : rowCenterY >= centerY;
   if (shouldScroll) {
-    const target = vp.scrollTop + (rowCenterY - vpCenterY);
+    const target = vp.scrollTop + (rowCenterY - centerY);
     const maxScroll = vp.scrollHeight - vpRect.height;
     vp.scrollTo({ top: Math.max(0, Math.min(maxScroll, target)), behavior: 'smooth' });
   }
@@ -685,6 +913,8 @@ function changeChartRow(delta) {
 
   const ccur = document.getElementById('cc-cur');
   if (ccur) ccur.textContent = chartCurrentRow;
+  const recap = document.getElementById('chart-recap');
+  if (recap) recap.innerHTML = recapHtml(chartCurrentRow);
   renderStats();
 
   // Smart scroll: keep active row centered once it reaches the viewport midpoint
@@ -699,26 +929,39 @@ function phaseComplete(p) { return p.steps.every(s => state[s.id]); }
 
 function renderTabs() {
   const el = document.getElementById('phase-tabs');
+  if (!el) return;
   el.innerHTML = PHASES.map((p, i) => {
     let cls = 'phase-tab';
     if (i === cur) cls += ' active';
     else if (phaseComplete(p)) cls += ' complete';
     return `<button class="${cls}" onclick="go(${i})">${phaseComplete(p) && i !== cur ? '<span class="check-dot"></span>' : ''}${p.name}</button>`;
   }).join('');
-  const tabs = el.querySelectorAll('.phase-tab');
-  if (tabs[cur]) tabs[cur].scrollIntoView({ inline: 'center', behavior: 'smooth', block: 'nearest' });
+  el.classList.toggle('collapsed', !phaseNavOpen);
+
+  const btn = document.getElementById('phase-switch-btn');
+  if (btn) btn.classList.toggle('open', phaseNavOpen);
+
+  if (phaseNavOpen) {
+    const tabs = el.querySelectorAll('.phase-tab');
+    if (tabs[cur]) tabs[cur].scrollIntoView({ inline: 'center', behavior: 'smooth', block: 'nearest' });
+  }
 }
+
+function togglePhaseNav() {
+  phaseNavOpen = !phaseNavOpen;
+  renderTabs();
+}
+
+const CHECK_SVG = `<svg width="11" height="9" viewBox="0 0 11 9" fill="none">
+        <path d="M1 4L4 7.5L10 1" stroke="white" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>`;
 
 function stepHtml(s) {
   const done = state[s.id];
   const ctr  = s.rows ? (ctrs[s.id] || 0) : 0;
   const pct  = s.rows ? Math.round(Math.min(100, ctr / s.target * 100)) : 0;
   return `<div class="step ${done ? 'done' : ''}" onclick="toggleStep('${s.id}')">
-    <div class="step-circle">
-      <svg width="11" height="9" viewBox="0 0 11 9" fill="none">
-        <path d="M1 4L4 7.5L10 1" stroke="white" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
-      </svg>
-    </div>
+    <div class="step-circle">${CHECK_SVG}</div>
     <div class="step-body">
       <div class="step-text">${s.text.replace(/\n/g, '<br>')}</div>
       ${s.rows ? `
@@ -738,21 +981,35 @@ function stepHtml(s) {
 
 function renderPhase() {
   const p = PHASES[cur];
-  let html = `<div class="phase-header"><div class="phase-name">${p.name}</div><div class="phase-desc">${p.desc}</div></div>`;
-  if (p.note) html += `<div class="note">${p.note.replace(/\n/g, '<br>')}</div>`;
+  const phaseHeaderHtml = `<div class="phase-header">
+    <div class="phase-name-row">
+      <div class="phase-name">${p.name}</div>
+      <button class="phase-switch-btn" id="phase-switch-btn" onclick="togglePhaseNav()" aria-label="Switch section">
+        <svg class="chevron" width="10" height="6" viewBox="0 0 10 6" fill="none">
+          <path d="M1 1L5 5L9 1" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </button>
+    </div>
+    <div class="phase-desc">${p.desc}</div>
+    <div class="phase-scroll collapsed" id="phase-tabs"></div>
+  </div>`;
 
-  const preSteps  = p.steps.filter(s => !s.postChart);
-  const postSteps = p.steps.filter(s =>  s.postChart);
+  let html = '';
 
-  if (preSteps.length)  html += '<div class="steps">'  + preSteps.map(stepHtml).join('') + '</div>';
-  if (p.hasChart)       html += buildChartTracker();
-  if (postSteps.length) html += '<div class="steps" style="margin-top:1rem">' + postSteps.map(stepHtml).join('') + '</div>';
+  if (p.hasChart) {
+    const confirmStep = p.steps.find(s => s.postChart);
+    html += buildChartTracker(confirmStep, phaseHeaderHtml);
+  } else {
+    html += phaseHeaderHtml;
+    if (p.note) html += `<div class="note">${p.note.replace(/\n/g, '<br>')}</div>`;
+    if (p.steps.length) html += '<div class="steps">' + p.steps.map(stepHtml).join('') + '</div>';
 
-  html += '<div class="nav-btns">';
-  if (cur > 0) html += `<button class="nav-btn" onclick="go(${cur - 1})">← Back</button>`;
-  if (cur < PHASES.length - 1) html += `<button class="nav-btn primary" onclick="go(${cur + 1})">Next →</button>`;
-  else html += `<button class="nav-btn primary" onclick="alert('Your Peacock Tee is finished! 🎉')">Finished! 🎉</button>`;
-  html += '</div>';
+    html += '<div class="nav-btns">';
+    if (cur > 0) html += `<button class="nav-btn" onclick="go(${cur - 1})">← Back</button>`;
+    if (cur < PHASES.length - 1) html += `<button class="nav-btn primary" onclick="go(${cur + 1})">Next →</button>`;
+    else html += `<button class="nav-btn primary" onclick="alert('Your Peacock Tee is finished! 🎉')">Finished! 🎉</button>`;
+    html += '</div>';
+  }
 
   document.getElementById('phase-content').innerHTML = html;
 }
@@ -764,16 +1021,61 @@ function renderStats() {
 }
 
 function render() {
-  renderTabs();
   renderPhase();
+  renderTabs();
   renderStats();
-  if (PHASES[cur].hasChart) {
+
+  const isChart = PHASES[cur].hasChart;
+  document.body.classList.toggle('chart-page', isChart);
+
+  if (isChart) {
+    renderChartDock();
     requestAnimationFrame(() => requestAnimationFrame(scrollChartToCurrent));
+    wakeUI();
+  } else {
+    document.body.classList.remove('chart-idle');
+    clearTimeout(uiIdleTimer);
+    document.getElementById('chart-dock').innerHTML = '';
   }
 }
 
+const UI_IDLE_DELAY = 2500;
+const PANEL_ANIM_MS = 420;
+let uiIdleTimer = null;
+
+// Keep the current row centred while the panels (and therefore the chart
+// viewport) animate open/closed — re-centre every frame for the duration.
+function recenterChartAnimated() {
+  const start = performance.now();
+  (function step(now) {
+    scrollChartToCurrent('auto');
+    if (now - start < PANEL_ANIM_MS) requestAnimationFrame(step);
+  })(start);
+}
+
+function scheduleIdle() {
+  clearTimeout(uiIdleTimer);
+  uiIdleTimer = setTimeout(() => {
+    document.body.classList.add('chart-idle');
+    recenterChartAnimated();
+  }, UI_IDLE_DELAY);
+}
+
+function wakeUI() {
+  const wasIdle = document.body.classList.contains('chart-idle');
+  document.body.classList.remove('chart-idle');
+  if (wasIdle) recenterChartAnimated();
+  scheduleIdle();
+}
+
+document.addEventListener('pointerdown', e => {
+  if (!document.body.classList.contains('chart-page')) return;
+  if (e.target.closest('.chart-vp') || e.target.closest('.chart-footer') || e.target.closest('.chart-recenter')) return;
+  wakeUI();
+});
+
 function go(i) {
-  cur = i; save(); render();
+  cur = i; phaseNavOpen = false; save(); render();
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
