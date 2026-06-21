@@ -53,6 +53,9 @@
   body.chart-page .header {
     position: fixed; top: 0; left: 0; right: 0; z-index: 100;
     padding: 0.55rem 1.25rem 0.5rem;
+    /* collapse animation only matters on the chart page (idle auto-hide) */
+    max-height: 300px; overflow: hidden;
+    transition: max-height 0.35s ease, opacity 0.25s ease, padding 0.35s ease;
   }
   body.chart-page .content {
     position: fixed; left: 0; right: 0; top: 0; bottom: 0; /* top/bottom set by JS */
@@ -100,8 +103,6 @@
     border-bottom: 1px solid var(--border);
     padding: 1rem 1.25rem 0.875rem;
     position: sticky; top: 0; z-index: 100;
-    max-height: 300px; overflow: hidden;
-    transition: max-height 0.35s ease, opacity 0.25s ease, padding 0.35s ease;
   }
   .header-top { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 0.75rem; }
   .header h1 {
@@ -149,19 +150,19 @@
 
   /* ── Content ── */
   .content { padding: 1.25rem; }
-  .phase-header {
-    margin-bottom: 1rem;
+  .phase-header { margin-bottom: 1rem; }
+  .phase-name { font-family: Georgia, serif; font-size: 1.35rem; font-weight: 400; color: var(--text); margin-bottom: 2px; }
+  .phase-desc { font-size: 12px; color: var(--muted); }
+  /* Collapse animation (idle auto-hide) only applies on the chart page */
+  body.chart-page .phase-header {
+    margin: 0; padding: 8px 14px 7px;
     max-height: 300px; overflow: hidden;
     transition: max-height 0.35s ease, opacity 0.25s ease, margin 0.35s ease;
   }
-  .phase-name { font-family: Georgia, serif; font-size: 1.35rem; font-weight: 400; color: var(--text); margin-bottom: 2px; }
-  .phase-desc {
-    font-size: 12px; color: var(--muted);
+  body.chart-page .phase-desc {
     max-height: 40px; overflow: hidden;
     transition: max-height 0.35s ease, opacity 0.25s ease;
   }
-  /* In chart mode the phase header is the minimized "grab bar" inside the top panel */
-  body.chart-page .phase-header { margin: 0; padding: 8px 14px 7px; }
 
   .note {
     background: #ede9f5; border-left: 3px solid #6b5b8a;
@@ -208,6 +209,23 @@
   }
   .step.done .step-bullets li { color: var(--done-text); }
   .step.done .step-bullets li::before { background: var(--accent-mid); }
+
+  /* Per-round cadence reminder (e.g. increase vs plain round) */
+  .round-hint {
+    margin-top: 10px; padding: 9px 12px; border-radius: var(--radius-sm);
+    background: var(--bg); border-left: 3px solid var(--border);
+    display: flex; flex-direction: column; gap: 2px;
+  }
+  .round-hint-lbl {
+    font-size: 10px; font-weight: 600; letter-spacing: 0.04em;
+    text-transform: uppercase; color: var(--muted);
+  }
+  .round-hint-txt { font-size: 13px; line-height: 1.45; color: var(--text); }
+  .round-hint.on {
+    background: var(--accent-light); border-left-color: var(--accent);
+  }
+  .round-hint.on .round-hint-lbl { color: var(--accent); }
+  .round-hint.on .round-hint-txt { color: var(--done-text); font-weight: 500; }
 
   .row-counter {
     margin-top: 10px; background: var(--bg); border-radius: var(--radius-sm);
@@ -623,8 +641,11 @@ const PHASES = [
         '48 sleeve / M / 1 marker-st / M',
         '38 back',
       ]},
-      {id:'r2', text:'Every 2nd round: m1-R before marker-st, k1 marker-st, m1-L after — at all 4 markers = 8 inc/round', rows:true, target:4, lbl:'increase rounds'},
-      {id:'r3', text:'After 4 increase rounds: 285 sts total. Check mid-front measures ≈ 22 cm'},
+      {id:'r2', text:'Increase every 2nd round at all 4 markers.', rows:true, target:8, lbl:'round',
+        cadence:2,
+        cadenceOn:'Increase round — m1-R before marker-st, k1 marker-st, m1-L after (all 4 markers = 8 inc)',
+        cadenceOff:'Plain round — knit all stitches'},
+      {id:'r3', text:'After 8 rounds (4 increase rounds): 285 sts total. Check mid-front measures ≈ 22 cm'},
     ]
   },
   {
@@ -984,21 +1005,37 @@ const CHECK_SVG = `<svg width="11" height="9" viewBox="0 0 11 9" fill="none">
         <path d="M1 4L4 7.5L10 1" stroke="white" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
       </svg>`;
 
+// For stepped-cadence rows (e.g. "increase every 2nd round"), show what to do
+// on the round the tracker says you're currently working.
+function cadenceHintHtml(s, ctr, done) {
+  if (!s.cadence || done || ctr >= s.target) return '';
+  const round = ctr + 1;               // the round you're about to work
+  const isOn  = round % s.cadence === 0;
+  return `<div class="round-hint ${isOn ? 'on' : ''}">
+    <span class="round-hint-lbl">Round ${round} of ${s.target}</span>
+    <span class="round-hint-txt">${isOn ? s.cadenceOn : s.cadenceOff}</span>
+  </div>`;
+}
+
 function stepHtml(s) {
   const done = state[s.id];
   const ctr  = s.rows ? (ctrs[s.id] || 0) : 0;
   const pct  = s.rows ? Math.round(Math.min(100, ctr / s.target * 100)) : 0;
+  // Cadence steps count the round you're working (1-based: round 1..N, no
+  // "round 0"); plain row counters show completed rounds.
+  const rcVal = s.cadence ? Math.min(ctr + 1, s.target) : ctr;
   return `<div class="step ${done ? 'done' : ''}" onclick="toggleStep('${s.id}')">
     <div class="step-circle">${CHECK_SVG}</div>
     <div class="step-body">
       <div class="step-text">${s.text.replace(/\n/g, '<br>')}</div>
       ${s.bullets ? `<ul class="step-bullets">${s.bullets.map(b => `<li>${b}</li>`).join('')}</ul>` : ''}
+      ${cadenceHintHtml(s, ctr, done)}
       ${s.rows ? `
       <div class="row-counter" onclick="event.stopPropagation()">
         <span class="rc-label">${s.lbl}</span>
         <div class="rc-controls">
           <button class="rc-btn" onclick="changeCount('${s.id}',-1)">−</button>
-          <span class="rc-val">${ctr}</span>
+          <span class="rc-val">${rcVal}</span>
           <span class="rc-target">/ ${s.target}</span>
           <button class="rc-btn" onclick="changeCount('${s.id}',1)">+</button>
         </div>
