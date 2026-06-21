@@ -193,6 +193,21 @@
   .step-body { flex: 1; min-width: 0; }
   .step-text { font-size: 14px; line-height: 1.55; color: var(--text); }
   .step.done .step-text { color: var(--done-text); text-decoration: line-through; text-decoration-color: var(--accent-mid); }
+  .step-bullets {
+    list-style: none; margin: 8px 0 0; padding: 0;
+    display: flex; flex-direction: column; gap: 6px;
+  }
+  .step-bullets li {
+    position: relative; padding-left: 16px;
+    font-size: 14px; line-height: 1.45; color: var(--text);
+    font-variant-numeric: tabular-nums;
+  }
+  .step-bullets li::before {
+    content: ''; position: absolute; left: 3px; top: 8px;
+    width: 5px; height: 5px; border-radius: 50%; background: var(--accent);
+  }
+  .step.done .step-bullets li { color: var(--done-text); }
+  .step.done .step-bullets li::before { background: var(--accent-mid); }
 
   .row-counter {
     margin-top: 10px; background: var(--bg); border-radius: var(--radius-sm);
@@ -601,7 +616,13 @@ const PHASES = [
   {
     id:'rag', name:'Raglan', desc:'Divide & increase · 4 mm needle',
     steps:[
-      {id:'r1', text:'Mark 4 sections:\n38 back / M / 1 marker-st / M / 48 sleeve / M / 1 marker-st / M / 77 front / M / 1 marker-st / M / 48 sleeve / M / 1 marker-st / M / 38 back'},
+      {id:'r1', text:'Mark 4 sections (in the round, BOR = mid-back):', bullets:[
+        '38 back / M / 1 marker-st / M',
+        '48 sleeve / M / 1 marker-st / M',
+        '77 front / M / 1 marker-st / M',
+        '48 sleeve / M / 1 marker-st / M',
+        '38 back',
+      ]},
       {id:'r2', text:'Every 2nd round: m1-R before marker-st, k1 marker-st, m1-L after — at all 4 markers = 8 inc/round', rows:true, target:4, lbl:'increase rounds'},
       {id:'r3', text:'After 4 increase rounds: 285 sts total. Check mid-front measures ≈ 22 cm'},
     ]
@@ -971,6 +992,7 @@ function stepHtml(s) {
     <div class="step-circle">${CHECK_SVG}</div>
     <div class="step-body">
       <div class="step-text">${s.text.replace(/\n/g, '<br>')}</div>
+      ${s.bullets ? `<ul class="step-bullets">${s.bullets.map(b => `<li>${b}</li>`).join('')}</ul>` : ''}
       ${s.rows ? `
       <div class="row-counter" onclick="event.stopPropagation()">
         <span class="rc-label">${s.lbl}</span>
