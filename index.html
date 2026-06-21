@@ -118,6 +118,18 @@
   .progress-track { flex: 1; height: 4px; background: var(--border); border-radius: 2px; overflow: hidden; }
   .progress-fill { height: 100%; background: var(--accent); border-radius: 2px; transition: width 0.4s ease; }
 
+  /* Global row tally (project-wide, in the header) */
+  .grow { display: flex; align-items: center; gap: 5px; flex-shrink: 0; }
+  .grow-lbl {
+    font-size: 10px; font-weight: 600; letter-spacing: 0.04em;
+    text-transform: uppercase; color: var(--muted); margin-right: 1px;
+  }
+  .grow-val {
+    min-width: 24px; text-align: center;
+    font-size: 15px; font-weight: 700; color: var(--text);
+    font-variant-numeric: tabular-nums;
+  }
+
   /* ── Phase switch control + tabs ── */
   .phase-name-row { display: flex; align-items: center; gap: 8px; }
   .phase-switch-btn {
@@ -464,6 +476,10 @@
   </div>
   <div class="progress-wrap">
     <div class="progress-track"><div class="progress-fill" id="prog-fill"></div></div>
+    <div class="grow" title="Total rows knit across all sections">
+      <span class="grow-lbl">Rows</span>
+      <span class="grow-val" id="grow-val">0</span>
+    </div>
     <button onclick="showExtractor()" style="font-size:10px;color:var(--muted);background:none;border:1px solid var(--border);border-radius:4px;padding:2px 6px;cursor:pointer;flex-shrink:0;">⬡</button>
   </div>
 </div>
@@ -674,7 +690,7 @@ const PHASES = [
 const TOTAL_STEPS = PHASES.reduce((a,p) => a + p.steps.length, 0);
 let cur = 0;
 let phaseNavOpen = false;
-let state = {}, ctrs = {}, chartCurrentRow = 1, cellSz = 16;
+let state = {}, ctrs = {}, chartCurrentRow = 1, cellSz = 16, globalRows = 0;
 
 // ─────────────────────────────────────────────
 // STATE INIT
@@ -693,6 +709,7 @@ function save() {
     localStorage.setItem('pt3_cur', cur);
     localStorage.setItem('pt3_chartRow', chartCurrentRow);
     localStorage.setItem('pt3_cellSz', cellSz);
+    localStorage.setItem('pt3_grows', globalRows);
   } catch(e) {}
 }
 
@@ -703,6 +720,7 @@ function load() {
     const cu = localStorage.getItem('pt3_cur'); if (cu !== null) cur = parseInt(cu);
     const cr = localStorage.getItem('pt3_chartRow'); if (cr !== null) chartCurrentRow = Math.max(1, Math.min(CHART_TOTAL, parseInt(cr)));
     const cs = localStorage.getItem('pt3_cellSz'); if (cs !== null) cellSz = Math.max(10, Math.min(32, parseInt(cs)));
+    const gr = localStorage.getItem('pt3_grows'); if (gr !== null) globalRows = Math.max(0, parseInt(gr) || 0);
     document.documentElement.style.setProperty('--cell-sz', cellSz + 'px');
   } catch(e) {}
 }
@@ -940,6 +958,8 @@ function changeChartRow(delta) {
   const prevRow = chartCurrentRow;
   chartCurrentRow = Math.max(1, Math.min(CHART_TOTAL, chartCurrentRow + delta));
   if (chartCurrentRow === prevRow) return;
+  globalRows = Math.max(0, globalRows + (chartCurrentRow - prevRow)); // auto-advance global
+  renderGlobalRows();
   save();
 
   // Targeted DOM update — no full re-render
@@ -1167,8 +1187,17 @@ function toggleStep(id) {
 function changeCount(id, delta) {
   const step = PHASES.flatMap(p => p.steps).find(s => s.id === id);
   const max  = step ? step.target : 999;
-  ctrs[id]   = Math.max(0, Math.min(max, (ctrs[id] || 0) + delta));
-  save(); render();
+  const prev = ctrs[id] || 0;
+  ctrs[id]   = Math.max(0, Math.min(max, prev + delta));
+  globalRows = Math.max(0, globalRows + (ctrs[id] - prev)); // auto-advance global by the real change
+  save(); render(); renderGlobalRows();
+}
+
+// Global, project-wide row tally — read-only display that auto-advances with
+// the section row counters and the chart row.
+function renderGlobalRows() {
+  const el = document.getElementById('grow-val');
+  if (el) el.textContent = globalRows;
 }
 
 // ── Service worker + update prompt ──
@@ -1222,6 +1251,7 @@ if (window.visualViewport) window.visualViewport.addEventListener('resize', onVi
 
 load();
 render();
+renderGlobalRows();
 
 // Show extractor if ?extract in URL
 if (location.search.includes('extract')) showExtractor();
