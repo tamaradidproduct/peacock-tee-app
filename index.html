@@ -130,6 +130,38 @@
     font-variant-numeric: tabular-nums;
   }
 
+  /* ── Pattern-title header (back to library) ── */
+  .pattern-h1 { display: flex; align-items: center; gap: 6px; }
+  .lib-back {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 26px; height: 26px; margin-left: -4px; border-radius: 50%;
+    border: 1px solid var(--border); background: var(--card);
+    color: var(--text); font-size: 20px; line-height: 1; cursor: pointer;
+    flex-shrink: 0; padding: 0 2px 2px 0;
+  }
+  .lib-back:active { background: var(--bg); }
+
+  /* ── Library / pattern list ── */
+  .lib-list { display: flex; flex-direction: column; gap: 12px; }
+  .lib-card {
+    display: block; width: 100%; text-align: left;
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 16px; cursor: pointer;
+    transition: background 0.15s, border-color 0.15s;
+    font-family: inherit; color: inherit;
+  }
+  .lib-card:active { background: var(--bg); }
+  .lib-card-top { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+  .lib-card-name { font-family: Georgia, serif; font-size: 1.2rem; color: var(--text); }
+  .lib-card-pct { font-size: 13px; font-weight: 600; color: var(--accent); flex-shrink: 0; }
+  .lib-card-meta { font-size: 12px; color: var(--muted); margin-top: 2px; }
+  .lib-card-track {
+    height: 5px; background: var(--border); border-radius: 3px;
+    overflow: hidden; margin: 12px 0 6px;
+  }
+  .lib-card-fill { height: 100%; background: var(--accent); border-radius: 3px; transition: width 0.3s ease; }
+  .lib-card-sub { font-size: 11px; color: var(--muted); }
+
   /* ── Phase switch control + tabs ── */
   .phase-name-row { display: flex; align-items: center; gap: 8px; }
   .phase-switch-btn {
@@ -469,20 +501,7 @@
 </head>
 <body>
 
-<div class="header">
-  <div class="header-top">
-    <h1><span>Peacock</span> Tee</h1>
-    <span class="header-badge">Size S · 97 cm</span>
-  </div>
-  <div class="progress-wrap">
-    <div class="progress-track"><div class="progress-fill" id="prog-fill"></div></div>
-    <div class="grow" title="Total rows knit across all sections">
-      <span class="grow-lbl">Rows</span>
-      <span class="grow-val" id="grow-val">0</span>
-    </div>
-    <button onclick="showExtractor()" style="font-size:10px;color:var(--muted);background:none;border:1px solid var(--border);border-radius:4px;padding:2px 6px;cursor:pointer;flex-shrink:0;">⬡</button>
-  </div>
-</div>
+<div class="header" id="header"></div>
 
 <div class="content">
   <div id="phase-content"></div>
@@ -499,7 +518,7 @@
 // Extracted directly from Figma via MCP — source of truth
 // Tokens: K=knit  P=purl  YO=yarn over  K2=k2tog  SK=SKPO  M1=make one  E=no-stitch
 // chartB[0]=row 1 (worked first, visual bottom)  chartB[43]=row 44 (worked last, visual top)
-const CHART_B = [
+let CHART_B = [
   // Row 1
   ['E','E','E','E','E','E','E','K','K','K','K','K','K','K','K','K','E','E','E','E','E','E','E'],
   // Row 2
@@ -603,12 +622,12 @@ const CHART_B = [
   }
 })();
 
-const CHART_TOTAL = CHART_B.length; // 44
+let CHART_TOTAL = CHART_B.length; // 44 (active pattern's chart)
 
 // ─────────────────────────────────────────────
 // PHASES
 // ─────────────────────────────────────────────
-const PHASES = [
+let PHASES = [
   {
     id:'mat', name:'Materials', desc:'Before you start',
     steps:[
@@ -687,42 +706,99 @@ const PHASES = [
   },
 ];
 
-const TOTAL_STEPS = PHASES.reduce((a,p) => a + p.steps.length, 0);
+// ─────────────────────────────────────────────
+// PATTERN REGISTRY
+// The PHASES / CHART_B literals above are the Peacock Tee pattern. Register it
+// here; the active-pattern pointers (PHASES / CHART_B / CHART_TOTAL /
+// TOTAL_STEPS) are swapped by activatePattern() when a pattern is opened.
+// Add future patterns as more entries with their own `phases` and `chart`.
+// ─────────────────────────────────────────────
+const PATTERNS = [
+  { id:'peacock-tee', name:'Peacock Tee', badge:'Size S · 97 cm', desc:'Top-down raglan · yoke chart', phases: PHASES, chart: CHART_B },
+];
+
+let TOTAL_STEPS = 0;
 let cur = 0;
 let phaseNavOpen = false;
 let state = {}, ctrs = {}, chartCurrentRow = 1, cellSz = 16, globalRows = 0;
+let activePatternId = null;
+let view = 'library';   // 'library' | 'pattern'
 
-// ─────────────────────────────────────────────
-// STATE INIT
-// ─────────────────────────────────────────────
-PHASES.forEach(p => {
-  p.steps.forEach(s => {
-    state[s.id] = false;
-    if (s.rows) ctrs[s.id] = 0;
-  });
-});
+function activePattern() { return PATTERNS.find(p => p.id === activePatternId) || null; }
+
+// Make a pattern active: swap the data pointers, then reset defaults and load
+// that pattern's own saved progress.
+function activatePattern(id) {
+  const p = PATTERNS.find(x => x.id === id) || PATTERNS[0];
+  activePatternId = p.id;
+  PHASES = p.phases;
+  CHART_B = p.chart || [];
+  CHART_TOTAL = CHART_B.length;
+  TOTAL_STEPS = PHASES.reduce((a, ph) => a + ph.steps.length, 0);
+  cur = 0; chartCurrentRow = 1; globalRows = 0;
+  state = {}; ctrs = {};
+  PHASES.forEach(ph => ph.steps.forEach(s => { state[s.id] = false; if (s.rows) ctrs[s.id] = 0; }));
+  loadPatternState();
+}
+
+// ── Persistence — progress is namespaced per pattern (pt3_<id>_*); cellSz is a
+//    global display pref shared across patterns. ──
+function pkey(suffix) { return 'pt3_' + activePatternId + '_' + suffix; }
 
 function save() {
+  try { localStorage.setItem('pt3_cellSz', cellSz); } catch(e) {}
+  if (!activePatternId) return;
   try {
-    localStorage.setItem('pt3_state', JSON.stringify(state));
-    localStorage.setItem('pt3_ctrs', JSON.stringify(ctrs));
-    localStorage.setItem('pt3_cur', cur);
-    localStorage.setItem('pt3_chartRow', chartCurrentRow);
-    localStorage.setItem('pt3_cellSz', cellSz);
-    localStorage.setItem('pt3_grows', globalRows);
+    localStorage.setItem(pkey('state'), JSON.stringify(state));
+    localStorage.setItem(pkey('ctrs'), JSON.stringify(ctrs));
+    localStorage.setItem(pkey('cur'), cur);
+    localStorage.setItem(pkey('chartRow'), chartCurrentRow);
+    localStorage.setItem(pkey('grows'), globalRows);
+    localStorage.setItem('pt3_lastPattern', activePatternId);
   } catch(e) {}
 }
 
-function load() {
+function loadPatternState() {
   try {
-    const st = localStorage.getItem('pt3_state'); if (st) state = Object.assign(state, JSON.parse(st));
-    const ct = localStorage.getItem('pt3_ctrs'); if (ct) ctrs = Object.assign(ctrs, JSON.parse(ct));
-    const cu = localStorage.getItem('pt3_cur'); if (cu !== null) cur = parseInt(cu);
-    const cr = localStorage.getItem('pt3_chartRow'); if (cr !== null) chartCurrentRow = Math.max(1, Math.min(CHART_TOTAL, parseInt(cr)));
+    const st = localStorage.getItem(pkey('state')); if (st) state = Object.assign(state, JSON.parse(st));
+    const ct = localStorage.getItem(pkey('ctrs')); if (ct) ctrs = Object.assign(ctrs, JSON.parse(ct));
+    const cu = localStorage.getItem(pkey('cur')); if (cu !== null) cur = Math.max(0, Math.min(PHASES.length - 1, parseInt(cu) || 0));
+    const cr = localStorage.getItem(pkey('chartRow')); if (cr !== null) chartCurrentRow = Math.max(1, Math.min(CHART_TOTAL, parseInt(cr)));
+    const gr = localStorage.getItem(pkey('grows')); if (gr !== null) globalRows = Math.max(0, parseInt(gr) || 0);
+  } catch(e) {}
+}
+
+// Global (non-pattern) prefs.
+function loadGlobal() {
+  try {
     const cs = localStorage.getItem('pt3_cellSz'); if (cs !== null) cellSz = Math.max(10, Math.min(32, parseInt(cs)));
-    const gr = localStorage.getItem('pt3_grows'); if (gr !== null) globalRows = Math.max(0, parseInt(gr) || 0);
     document.documentElement.style.setProperty('--cell-sz', cellSz + 'px');
   } catch(e) {}
+}
+
+// One-time migration: fold the original single-pattern save data into the
+// Peacock Tee namespace so existing progress is preserved.
+function migrateLegacy() {
+  try {
+    if (localStorage.getItem('pt3_state') && !localStorage.getItem('pt3_peacock-tee_state')) {
+      ['state','ctrs','cur','chartRow','grows'].forEach(k => {
+        const v = localStorage.getItem('pt3_' + k);
+        if (v !== null) localStorage.setItem('pt3_peacock-tee_' + k, v);
+      });
+    }
+  } catch(e) {}
+}
+
+// Done-steps / total for a pattern, read from its saved state without
+// activating it (for the library cards).
+function patternProgress(p) {
+  const total = p.phases.reduce((a, ph) => a + ph.steps.length, 0);
+  let done = 0;
+  try {
+    const raw = localStorage.getItem('pt3_' + p.id + '_state');
+    if (raw) done = Object.values(JSON.parse(raw)).filter(Boolean).length;
+  } catch(e) {}
+  return { done, total, pct: total ? Math.round(done / total * 100) : 0 };
 }
 
 // ─────────────────────────────────────────────
@@ -1102,14 +1178,23 @@ function renderPhase() {
 
 function renderStats() {
   const done = doneCount();
-  const pct  = Math.round(done / TOTAL_STEPS * 100);
-  document.getElementById('prog-fill').style.width = pct + '%';
+  const pct  = TOTAL_STEPS ? Math.round(done / TOTAL_STEPS * 100) : 0;
+  const el = document.getElementById('prog-fill');
+  if (el) el.style.width = pct + '%';
 }
 
 function render() {
+  if (view === 'library') { renderLibrary(); return; }
+  renderPattern();
+}
+
+function renderPattern() {
+  document.body.classList.remove('library-view');
+  renderHeader();
   renderPhase();
   renderTabs();
   renderStats();
+  renderGlobalRows();
 
   const isChart = PHASES[cur].hasChart;
   document.body.classList.toggle('chart-page', isChart);
@@ -1123,6 +1208,67 @@ function render() {
     clearTimeout(uiIdleTimer);
     document.getElementById('chart-dock').innerHTML = '';
   }
+}
+
+function renderLibrary() {
+  document.body.classList.remove('chart-page', 'chart-idle');
+  document.body.classList.add('library-view');
+  clearTimeout(uiIdleTimer);
+  const dock = document.getElementById('chart-dock'); if (dock) dock.innerHTML = '';
+  renderHeader();
+
+  const cards = PATTERNS.map(p => {
+    const pr = patternProgress(p);
+    return `<button class="lib-card" onclick="openPattern('${p.id}')">
+      <div class="lib-card-top">
+        <span class="lib-card-name">${p.name}</span>
+        <span class="lib-card-pct">${pr.pct}%</span>
+      </div>
+      <div class="lib-card-meta">${[p.badge, p.desc].filter(Boolean).join(' · ')}</div>
+      <div class="lib-card-track"><div class="lib-card-fill" style="width:${pr.pct}%"></div></div>
+      <div class="lib-card-sub">${pr.done} of ${pr.total} steps done</div>
+    </button>`;
+  }).join('');
+  document.getElementById('phase-content').innerHTML = `<div class="lib-list">${cards}</div>`;
+}
+
+// Build the header for the current view.
+function renderHeader() {
+  const h = document.getElementById('header');
+  if (!h) return;
+  if (view === 'library') {
+    h.innerHTML = `<div class="header-top"><h1><span>My</span> Patterns</h1></div>`;
+    return;
+  }
+  const p = activePattern();
+  h.innerHTML = `<div class="header-top">
+      <h1 class="pattern-h1"><button class="lib-back" onclick="goToLibrary()" aria-label="Back to patterns">‹</button>${p ? p.name : ''}</h1>
+      ${p && p.badge ? `<span class="header-badge">${p.badge}</span>` : ''}
+    </div>
+    <div class="progress-wrap">
+      <div class="progress-track"><div class="progress-fill" id="prog-fill"></div></div>
+      <div class="grow" title="Total rows knit across all sections">
+        <span class="grow-lbl">Rows</span>
+        <span class="grow-val" id="grow-val">0</span>
+      </div>
+      <button onclick="showExtractor()" style="font-size:10px;color:var(--muted);background:none;border:1px solid var(--border);border-radius:4px;padding:2px 6px;cursor:pointer;flex-shrink:0;">⬡</button>
+    </div>`;
+}
+
+function openPattern(id) {
+  activatePattern(id);
+  view = 'pattern';
+  try { localStorage.setItem('pt3_lastPattern', id); } catch(e) {}
+  window.scrollTo(0, 0);
+  render();
+}
+
+function goToLibrary() {
+  save();
+  view = 'library';
+  phaseNavOpen = false;
+  window.scrollTo(0, 0);
+  render();
 }
 
 const UI_IDLE_DELAY = 2500;
@@ -1249,9 +1395,10 @@ window.addEventListener('resize', onViewportChange);
 window.addEventListener('orientationchange', onViewportChange);
 if (window.visualViewport) window.visualViewport.addEventListener('resize', onViewportChange);
 
-load();
+migrateLegacy();
+loadGlobal();
+view = 'library';
 render();
-renderGlobalRows();
 
 // Show extractor if ?extract in URL
 if (location.search.includes('extract')) showExtractor();
