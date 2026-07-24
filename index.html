@@ -1196,7 +1196,10 @@ function renderPattern() {
   renderStats();
   renderGlobalRows();
 
-  const isChart = PHASES[cur].hasChart;
+  // NB: coerce to a real boolean — classList.toggle(cls, undefined) *flips*
+  // the class (WebIDL treats explicit undefined as "no force arg"), which made
+  // every step toggle flip chart-page on/off on non-chart screens.
+  const isChart = !!PHASES[cur].hasChart;
   document.body.classList.toggle('chart-page', isChart);
 
   if (isChart) {
@@ -1232,10 +1235,16 @@ function renderLibrary() {
   document.getElementById('phase-content').innerHTML = `<div class="lib-list">${cards}</div>`;
 }
 
-// Build the header for the current view.
+// Build the header for the current view. Only rebuilds when the view/pattern
+// actually changes — otherwise the dynamic bits (progress bar, row count) are
+// updated in place by renderStats()/renderGlobalRows(), so checking off a step
+// doesn't tear down and relayout the header (which caused the content to jump).
 function renderHeader() {
   const h = document.getElementById('header');
   if (!h) return;
+  const key = view === 'pattern' ? 'p:' + activePatternId : 'lib';
+  if (h.dataset.key === key) return;
+  h.dataset.key = key;
   if (view === 'library') {
     h.innerHTML = `<div class="header-top"><h1><span>My</span> Patterns</h1></div>`;
     return;
