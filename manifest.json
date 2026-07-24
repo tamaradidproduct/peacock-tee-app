@@ -1,7 +1,7 @@
 {
-  "name": "Peacock Tee Tracker",
-  "short_name": "Peacock Tee",
-  "description": "Row-by-row knitting tracker for the Peacock Tee pattern",
+  "name": "Pattern library",
+  "short_name": "Pattern library",
+  "description": "Row-by-row knitting pattern tracker library",
   "start_url": "/",
   "display": "standalone",
   "orientation": "portrait",
