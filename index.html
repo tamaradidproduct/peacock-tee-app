@@ -104,9 +104,22 @@
     padding: 1rem 1.25rem 0.875rem;
     position: sticky; top: 0; z-index: 100;
   }
-  .header-top { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 0.75rem; }
+  .header-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; margin-bottom: 0.75rem; }
   .header-top.lib-brand { justify-content: flex-start; gap: 10px; align-items: center; margin-bottom: 0; }
+  .header-top .pattern-h1 { flex: 1; min-width: 0; }
   .lib-logo { display: block; flex-shrink: 0; }
+
+  /* Compact project header: back · (title + size subtitle) · Rows · chevron */
+  .proj-head { align-items: flex-start; gap: 8px; margin-bottom: 0; }
+  .proj-heading { flex: 1; min-width: 0; }
+  .proj-title {
+    font-family: Georgia, serif; font-style: italic; color: var(--accent);
+    font-size: 1.05rem; font-weight: 400; line-height: 1.25;
+    letter-spacing: -0.01em; cursor: pointer;
+  }
+  .proj-sub { font-size: 12px; color: var(--muted); margin-top: 2px; }
+  .proj-head .grow { flex-shrink: 0; margin-top: 1px; }
+  .proj-head .hdr-more { flex-shrink: 0; }
   .header h1 {
     font-family: Georgia, 'Times New Roman', serif;
     font-size: 1.25rem; font-weight: 400; color: var(--text); letter-spacing: -0.01em;
@@ -117,7 +130,23 @@
     background: var(--accent-light); padding: 3px 8px; border-radius: 20px;
   }
   .progress-wrap { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
+  .progress-wrap .hdr-more { margin-left: auto; }
   .progress-track { flex: 1; height: 4px; background: var(--border); border-radius: 2px; overflow: hidden; }
+
+  /* Minimized header: progress bar tucks away until the chevron is tapped */
+  .hdr-more {
+    display: flex; align-items: center; justify-content: center;
+    width: 30px; height: 26px; border: none; background: none;
+    color: var(--muted); cursor: pointer; flex-shrink: 0; padding: 0;
+  }
+  .hdr-more .chevron { transition: transform 0.25s ease; }
+  .header.meta-open .hdr-more .chevron { transform: rotate(180deg); }
+  .hdr-meta {
+    max-height: 0; overflow: hidden; opacity: 0;
+    transition: max-height 0.3s ease, opacity 0.25s ease, margin-top 0.3s ease;
+  }
+  .hdr-meta .progress-track { width: 100%; }
+  .header.meta-open .hdr-meta { max-height: 16px; opacity: 1; margin-top: 9px; }
   .progress-fill { height: 100%; background: var(--accent); border-radius: 2px; transition: width 0.4s ease; }
 
   /* Global row tally (project-wide, in the header) */
@@ -186,9 +215,6 @@
   .fab-new:active { background: #3c5a4b; transform: scale(0.94); }
   .home-empty { text-align: center; color: var(--muted); font-size: 14px; line-height: 1.6; padding: 24px 12px; }
   .picker-hint { font-size: 13px; color: var(--muted); margin-bottom: 12px; }
-
-  /* Project title in the header is tappable to rename */
-  .proj-title { cursor: pointer; }
 
   /* ── Phase switch control + tabs ── */
   .phase-name-row { display: flex; align-items: center; gap: 8px; }
@@ -750,7 +776,7 @@ const TATTING_PHASES = [
     ]
   },
   {
-    id:'tat-t1', name:'Triangle 1', desc:'15 rings + 10 chains',
+    id:'tat-t1', name:'Triangle 1', desc:'15 rings + 10 chains', countable:true,
     note:'R = ring · Ch = chain · ds = double stitch · p = picot · j = join.\nEach ring or chain below is one step.',
     steps:[
       {id:'t1r1',  text:'R1: (3ds p) 5 times, 3ds, close, turn'},
@@ -781,7 +807,7 @@ const TATTING_PHASES = [
     ]
   },
   {
-    id:'tat-t2', name:'Triangle 2', desc:'Mirrors Triangle 1, joined to it',
+    id:'tat-t2', name:'Triangle 2', desc:'Mirrors Triangle 1, joined to it', countable:true,
     note:'Same structure as Triangle 1, with extra joins to the "corresponding" ring/chain on Triangle 1.',
     steps:[
       {id:'t2r1',  text:'R1: 3ds j to last p of corresponding R on Triangle1, (3ds p) 4 times, 3ds, close, turn'},
@@ -1483,6 +1509,7 @@ function renderHeader() {
   const key = view === 'project' ? 'proj:' + activeProjectId : view;
   if (h.dataset.key === key) return;
   h.dataset.key = key;
+  h.classList.remove('meta-open');   // each view/project starts minimized
   if (view === 'home') {
     h.innerHTML = `<div class="header-top lib-brand">${LOGO_SVG}<h1><span>Pattern</span> library</h1></div>`;
     return;
@@ -1493,18 +1520,24 @@ function renderHeader() {
   }
   const proj = activeProject();
   const pat = activePattern();
-  h.innerHTML = `<div class="header-top">
-      <h1 class="pattern-h1"><button class="lib-back" onclick="goHome()" aria-label="Back to projects">‹</button><span class="proj-title" onclick="renameProject('${proj ? proj.id : ''}')" title="Tap to rename">${proj ? escapeHtml(proj.name) : ''}</span></h1>
-      ${pat && pat.badge ? `<span class="header-badge">${pat.badge}</span>` : ''}
-    </div>
-    <div class="progress-wrap">
-      <div class="progress-track"><div class="progress-fill" id="prog-fill"></div></div>
-      <div class="grow" title="Total rows knit across all sections">
-        <span class="grow-lbl">Rows</span>
-        <span class="grow-val" id="grow-val">0</span>
+  h.innerHTML = `<div class="header-top proj-head">
+      <button class="lib-back" onclick="goHome()" aria-label="Back to projects">‹</button>
+      <div class="proj-heading">
+        <div class="proj-title" onclick="renameProject('${proj ? proj.id : ''}')" title="Tap to rename">${proj ? escapeHtml(proj.name) : ''}</div>
+        ${pat && pat.badge ? `<div class="proj-sub">${pat.badge}</div>` : ''}
       </div>
-      <button onclick="showExtractor()" style="font-size:10px;color:var(--muted);background:none;border:1px solid var(--border);border-radius:4px;padding:2px 6px;cursor:pointer;flex-shrink:0;">⬡</button>
+      <span class="grow" title="Rows / rings / chains completed"><span class="grow-lbl">Rows</span><span class="grow-val" id="grow-val">0</span></span>
+      <button class="hdr-more" onclick="toggleHeaderMeta()" aria-label="Show progress"><svg class="chevron" width="12" height="7" viewBox="0 0 12 7" fill="none"><path d="M1 1L6 6L11 1" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+    </div>
+    <div class="hdr-meta">
+      <div class="progress-track"><div class="progress-fill" id="prog-fill"></div></div>
     </div>`;
+}
+function toggleHeaderMeta() {
+  const h = document.getElementById('header');
+  if (!h) return;
+  h.classList.toggle('meta-open');
+  if (document.body.classList.contains('chart-page')) setTimeout(syncChartLayout, 320);
 }
 // Force the header to rebuild on next render (e.g. after a project rename,
 // where the view/project key is unchanged but the title text changed).
@@ -1593,7 +1626,13 @@ function go(i) {
 }
 
 function toggleStep(id) {
-  state[id] = !state[id]; save(); render();
+  const nowDone = !state[id];
+  state[id] = nowDone;
+  // On "countable" phases (e.g. tatting rings/chains) each completed step is one
+  // unit of work — advance the Rows tally by the real change.
+  const ph = PHASES.find(p => p.steps.some(s => s.id === id));
+  if (ph && ph.countable) globalRows = Math.max(0, globalRows + (nowDone ? 1 : -1));
+  save(); render();
 }
 
 function changeCount(id, delta) {
