@@ -173,15 +173,17 @@
   .proj-act:active { background: var(--bg); }
   .proj-del { color: #a4553f; border-color: #e4c7bd; }
 
-  /* New-project button + empty/picker states */
-  .new-proj-btn {
-    display: block; width: 100%; margin-top: 14px; padding: 14px;
+  /* New-project floating action button + empty/picker states */
+  .fab-new {
+    position: fixed; right: 18px; bottom: calc(18px + env(safe-area-inset-bottom));
+    z-index: 60; width: 56px; height: 56px; border-radius: 50%;
     background: var(--accent); color: #fff; border: none;
-    border-radius: var(--radius); font-family: inherit;
-    font-size: 15px; font-weight: 600; cursor: pointer;
-    transition: background 0.15s;
+    font-size: 30px; font-weight: 300; line-height: 1; padding-bottom: 3px;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; box-shadow: 0 4px 14px rgba(0,0,0,0.22);
+    transition: background 0.15s, transform 0.12s;
   }
-  .new-proj-btn:active { background: #3c5a4b; }
+  .fab-new:active { background: #3c5a4b; transform: scale(0.94); }
   .home-empty { text-align: center; color: var(--muted); font-size: 14px; line-height: 1.6; padding: 24px 12px; }
   .picker-hint { font-size: 13px; color: var(--muted); margin-bottom: 12px; }
 
@@ -735,14 +737,99 @@ let PHASES = [
 ];
 
 // ─────────────────────────────────────────────
+// TATTING — Tatted Half-Square Triangle (be-stitched.com)
+// A non-knitting pattern: each ring (R) or chain (Ch) is one step/checkbox.
+// ─────────────────────────────────────────────
+const TATTING_PHASES = [
+  {
+    id:'tat-mat', name:'Materials', desc:'Before you start',
+    steps:[
+      {id:'tm1', text:'Tatting thread — Lizbeth size 40 (e.g. 679 Lime Green + 183 Orange Crush)'},
+      {id:'tm2', text:'2 tatting shuttles (or tatting needles)'},
+      {id:'tm3', text:'Crochet hook for joins'},
+    ]
+  },
+  {
+    id:'tat-t1', name:'Triangle 1', desc:'15 rings + 10 chains',
+    note:'R = ring · Ch = chain · ds = double stitch · p = picot · j = join.\nEach ring or chain below is one step.',
+    steps:[
+      {id:'t1r1',  text:'R1: (3ds p) 5 times, 3ds, close, turn'},
+      {id:'t1c1',  text:'Ch1: 3ds p (2ds p) 4 times, 3ds, turn'},
+      {id:'t1r2',  text:'R2: (3ds p) 2 times, 3ds j to last p of previous R, (3ds p) 4 times, 3ds, close, do not turn'},
+      {id:'t1r3',  text:'R3: (3ds p) 9 times, 3ds, close, turn'},
+      {id:'t1c2',  text:'Ch2: 3ds j to last p of previous Ch, (2ds p) 9 times, 3ds, do not turn'},
+      {id:'t1r4',  text:'R4: (3ds p) 5 times, 3ds, close, do not turn'},
+      {id:'t1r5',  text:'R5: (3ds p) 7 times, 3ds, close, turn'},
+      {id:'t1c3',  text:'Ch3: 3ds p (2ds p) 3 times, 3ds, j to 7th p of R3, 2ds p 2ds p 3ds, turn'},
+      {id:'t1r6',  text:'R6: (3ds p) 2 times, 3ds j to 5th p of previous R, (3ds p) 4 times, 3ds, close, turn'},
+      {id:'t1c4',  text:'Ch4: 3ds p (2ds p) 6 times, 3ds, turn'},
+      {id:'t1r7',  text:'R7: (3ds p) 2 times, 3ds j to 5th p of previous R, (3ds p) 4 times, 3ds, close, turn'},
+      {id:'t1c5',  text:'Ch5: 3ds p (2ds p) 2 times, 2ds, do not turn'},
+      {id:'t1r8',  text:'R8: (2ds p) 5 times, 2ds, close, do not turn'},
+      {id:'t1c6',  text:'Ch6: (2ds p) 3 times, 3ds, turn'},
+      {id:'t1r9',  text:'R9: (3ds p) 2 times, 3ds j to 5th p of R7, (3ds p) 4 times, 3ds, close, turn'},
+      {id:'t1c7',  text:'Ch7: 3ds p (2ds p) 6 times, 3ds, turn'},
+      {id:'t1r10', text:'R10: (3ds p) 2 times, 3ds j to 5th p of previous R, (3ds p) 4 times, 3ds, close, turn'},
+      {id:'t1c8',  text:'Ch8: 3ds p (2ds p) 6 times, 3ds, turn'},
+      {id:'t1r11', text:'R11: (3ds p) 2 times, 3ds j to 5th p of previous R, 3ds p 3ds j to 3rd p of R5, (3ds p) 2 times, 3ds, close, do not turn'},
+      {id:'t1r12', text:'R12: 3ds p 3ds j to 4th p of R4, (3ds p) 3 times, 3ds, close, do not turn'},
+      {id:'t1c9',  text:'Ch9: 3ds p (2ds p) 9 times, 3ds, turn'},
+      {id:'t1r13', text:'R13: (3ds p) 2 times, 3ds j to 3rd p of Ch8, (3ds p) 6 times, 3ds, close, do not turn'},
+      {id:'t1r14', text:'R14: (3ds p) 7 times, 3ds, close, turn'},
+      {id:'t1c10', text:'Ch10: 3ds j to last p of previous Ch, (2ds p) 4 times, 3ds, turn'},
+      {id:'t1r15', text:'R15: 3ds j to 5th p of previous R, (3ds p) 4 times, 3ds, close'},
+    ]
+  },
+  {
+    id:'tat-t2', name:'Triangle 2', desc:'Mirrors Triangle 1, joined to it',
+    note:'Same structure as Triangle 1, with extra joins to the "corresponding" ring/chain on Triangle 1.',
+    steps:[
+      {id:'t2r1',  text:'R1: 3ds j to last p of corresponding R on Triangle1, (3ds p) 4 times, 3ds, close, turn'},
+      {id:'t2c1',  text:'Ch1: 3ds j to first p of corresponding Ch on Triangle1, (2ds p) 4 times, 3ds, turn'},
+      {id:'t2r2',  text:'R2: (3ds p) 2 times, 3ds j to last p of previous R, (3ds p) 4 times, 3ds, close, do not turn'},
+      {id:'t2r3',  text:'R3: (3ds p) 9 times, 3ds, close, turn'},
+      {id:'t2c2',  text:'Ch2: 3ds j to last p of previous Ch, (2ds p) 4 times, 2ds j to 6th p of corresponding Ch on Triangle1, (2ds p) 4 times, 3ds, do not turn'},
+      {id:'t2r4',  text:'R4: 3ds p 3ds j to 4th p of corresponding R on Triangle1, (3ds p) 3 times, 3ds, close, do not turn'},
+      {id:'t2r5',  text:'R5: (3ds p) 7 times, 3ds, close, turn'},
+      {id:'t2c3',  text:'Ch3: 3ds p (2ds p) 3 times, 3ds, j to 7th p of R3, 2ds p 2ds p 3ds, turn'},
+      {id:'t2r6',  text:'R6: (3ds p) 2 times, 3ds j to 5th p of previous R, (3ds p) 4 times, 3ds, close, turn'},
+      {id:'t2c4',  text:'Ch4: 3ds p (2ds p) 6 times, 3ds, turn'},
+      {id:'t2r7',  text:'R7: (3ds p) 2 times, 3ds j to 5th p of previous R, (3ds p) 4 times, 3ds, close, turn'},
+      {id:'t2c5',  text:'Ch5: 3ds p (2ds p) 2 times, 2ds, do not turn'},
+      {id:'t2r8',  text:'R8: (2ds p) 5 times, 2ds, close, do not turn'},
+      {id:'t2c6',  text:'Ch6: (2ds p) 3 times, 3ds, turn'},
+      {id:'t2r9',  text:'R9: (3ds p) 2 times, 3ds j to 5th p of R7, (3ds p) 4 times, 3ds, close, turn'},
+      {id:'t2c7',  text:'Ch7: 3ds p (2ds p) 6 times, 3ds, turn'},
+      {id:'t2r10', text:'R10: (3ds p) 2 times, 3ds j to 5th p of previous R, (3ds p) 4 times, 3ds, close, turn'},
+      {id:'t2c8',  text:'Ch8: 3ds p (2ds p) 6 times, 3ds, turn'},
+      {id:'t2r11', text:'R11: (3ds p) 2 times, 3ds j to 5th p of previous R, 3ds p 3ds j to 3rd p of R5, (3ds p) 2 times, 3ds, close, do not turn'},
+      {id:'t2r12', text:'R12: 3ds p 3ds j to 4th p of R4, 3ds p 3ds j to 2nd p of corresponding R on Triangle1, 3ds p 3ds, close, do not turn'},
+      {id:'t2c9',  text:'Ch9: 3ds p (2ds p) 3 times, 2ds j to 6th p of corresponding Ch on Triangle1, (2ds p) 5 times, 3ds, turn'},
+      {id:'t2r13', text:'R13: (3ds p) 2 times, 3ds j to 3rd p of Ch8, (3ds p) 6 times, 3ds, close, do not turn'},
+      {id:'t2r14', text:'R14: (3ds p) 7 times, 3ds, close, turn'},
+      {id:'t2c10', text:'Ch10: 3ds j to last p of previous Ch, (2ds p) 3 times, 2ds j to adjacent p of corresponding Ch on Triangle1, 3ds, turn'},
+      {id:'t2r15', text:'R15: 3ds j to 5th p of previous R, (3ds p) 3 times, 3ds j to first p of corresponding R on Triangle1, 3ds, close'},
+    ]
+  },
+  {
+    id:'tat-fin', name:'Finishing', desc:'Complete the motif',
+    steps:[
+      {id:'tf1', text:'Cut and tie the thread ends'},
+      {id:'tf2', text:'Hide / weave in ends; block if desired'},
+    ]
+  },
+];
+
+// ─────────────────────────────────────────────
 // PATTERN REGISTRY
 // The PHASES / CHART_B literals above are the Peacock Tee pattern. Register it
 // here; the active-pattern pointers (PHASES / CHART_B / CHART_TOTAL /
 // TOTAL_STEPS) are swapped by applyPattern() when a project is opened.
-// Add future patterns as more entries with their own `phases` and `chart`.
+// Add future patterns as more entries with their own `phases` (and `chart`).
 // ─────────────────────────────────────────────
 const PATTERNS = [
   { id:'peacock-tee', name:'Peacock Tee', badge:'Size S · 97 cm', desc:'Top-down raglan · yoke chart', phases: PHASES, chart: CHART_B },
+  { id:'tatted-triangle', name:'Tatted Half-Square Triangle', badge:'≈ 2⅜ in · size 40', desc:'Tatting · two interlocking triangles', phases: TATTING_PHASES },
 ];
 function patternById(id) { return PATTERNS.find(p => p.id === id) || null; }
 
@@ -1346,7 +1433,7 @@ function renderHome() {
 
   let html = '<div class="lib-list">';
   if (!projects.length) {
-    html += `<div class="home-empty">No projects yet.<br>Start one from a pattern below.</div>`;
+    html += `<div class="home-empty">No projects yet.<br>Tap ＋ to start one.</div>`;
   } else {
     html += projects.map(proj => {
       const pr = projectProgress(proj);
@@ -1370,7 +1457,7 @@ function renderHome() {
     }).join('');
   }
   html += '</div>';
-  html += `<button class="new-proj-btn" onclick="startNewProject()">＋ New project</button>`;
+  html += `<button class="fab-new" onclick="startNewProject()" aria-label="New project" title="New project">+</button>`;
   document.getElementById('phase-content').innerHTML = html;
 }
 
