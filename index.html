@@ -244,16 +244,16 @@
   }
 
   /* ── Steps ── */
-  .steps { display: flex; flex-direction: column; gap: 2px; }
+  .steps { display: flex; flex-direction: column; gap: 6px; }
   .step {
-    background: var(--card); border: 1px solid var(--border);
-    border-radius: var(--radius-sm); padding: 13px 14px;
+    background: transparent; border: none;
+    border-radius: var(--radius-sm); padding: 9px 8px;
     display: flex; align-items: flex-start; gap: 12px;
-    cursor: pointer; transition: background 0.15s, border-color 0.15s;
+    cursor: pointer; transition: background 0.15s;
     -webkit-user-select: none; user-select: none;
   }
   .step:active { background: var(--bg); }
-  .step.done { background: var(--done-bg); border-color: transparent; }
+  .step.done { background: var(--done-bg); }
   .step-circle {
     width: 22px; height: 22px; border-radius: 50%;
     border: 1.5px solid var(--border); background: var(--card);
@@ -264,7 +264,7 @@
   .step-circle svg { display: none; }
   .step.done .step-circle svg { display: block; }
   .step-body { flex: 1; min-width: 0; }
-  .step-text { font-size: 14px; line-height: 1.55; color: var(--text); }
+  .step-text { font-size: 16px; line-height: 1.5; color: var(--text); }
   .step.done .step-text { color: var(--done-text); text-decoration: line-through; text-decoration-color: var(--accent-mid); }
   .step-bullets {
     list-style: none; margin: 8px 0 0; padding: 0;
@@ -272,7 +272,7 @@
   }
   .step-bullets li {
     position: relative; padding-left: 16px;
-    font-size: 14px; line-height: 1.45; color: var(--text);
+    font-size: 15px; line-height: 1.45; color: var(--text);
     font-variant-numeric: tabular-nums;
   }
   .step-bullets li::before {
