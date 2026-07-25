@@ -26,17 +26,22 @@ peacock-tee-deploy/
 
 ## How the app works
 
-### Views & routing
-Global `view` is either `'library'` or `'pattern'`. `render()` dispatches:
-- `renderLibrary()` — the home screen: one card per registered pattern with its progress (%, steps done), read from saved state via `patternProgress(p)` without activating the pattern.
-- `renderPattern()` — the tracker for the active pattern.
+### Patterns vs. projects
+- **Pattern** = a reusable template (registry entry). **Project** = an instance of a pattern with its own progress. You can have several projects from the same pattern (e.g. two Peacock Tees).
+- `PATTERNS` is the template registry; `projects` (persisted as `pt3_projects`) is the user's list of `{ id, patternId, name, created }`.
 
-`openPattern(id)` activates a pattern and switches to `'pattern'`; `goToLibrary()` returns to `'library'` (back chevron in the header). `renderHeader()` builds the header per view (library title vs. pattern name + back button + progress + rows) and only rebuilds when the view/pattern changes.
+### Views & routing
+Global `view` is `'home'`, `'picker'`, or `'project'`. `render()` dispatches:
+- `renderHome()` — the home screen: one card per **project** (name, pattern meta, progress via `projectProgress(proj)`), plus a **＋ New project** button and an empty state.
+- `renderPicker()` — pick a pattern to start a new project from.
+- `renderProject()` — the tracker for the active project.
+
+Navigation: `openProject(id)` → `'project'`; `goHome()` → `'home'` (back chevron); `startNewProject()` → `'picker'`; `choosePattern(patternId)` creates a project and opens it. `createProject` auto-names ("Peacock Tee", then "Peacock Tee 2"…); `renameProject` (prompt; also tap the project title in the header) and `deleteProject` (confirm; removes its `pt3_proj_<id>_*` keys) manage the list. `renderHeader()` builds the header per view and only rebuilds when the view/project changes (call `resetHeaderKey()` to force a rebuild, e.g. after a rename).
 
 ### Pattern registry
 `PATTERNS` is an array of pattern objects: `{ id, name, badge, desc, phases, chart }`. The Peacock Tee is `PATTERNS[0]`. To add a pattern, append another entry with its own `phases` (and `chart` array if it has a chart).
 
-`activatePattern(id)` swaps the **active-pattern pointers** — `PHASES`, `CHART_B`, `CHART_TOTAL`, `TOTAL_STEPS` are `let` globals reassigned to the chosen pattern, so the rest of the rendering code is pattern-agnostic. It then resets defaults and loads that pattern's saved progress.
+`activateProject(id)` looks up the project, then `applyPattern(pattern)` swaps the **active-pattern pointers** — `PHASES`, `CHART_B`, `CHART_TOTAL`, `TOTAL_STEPS` are `let` globals reassigned to the project's pattern, so the rest of the rendering code is pattern-agnostic. It then loads that project's saved progress.
 
 ### Phases & steps
 Each pattern's `phases` array holds phases in order (Peacock Tee: Materials → Collar → Short rows → Yoke chart → Raglan → Body → Sleeves). A step is `{ id, text, ... }` with optional fields:
@@ -45,20 +50,21 @@ Each pattern's `phases` array holds phases in order (Peacock Tee: Materials → 
 - `bullets: [...]` — renders a bulleted list under the step text.
 - `postChart: true` — on a `hasChart` phase, folds the step into the chart card (the "Count to confirm 253 sts" confirm step).
 
-### State & persistence (per pattern)
-Progress is **namespaced per pattern**. Keys:
-- `pt3_<patternId>_state` — `{stepId: boolean}` completed steps
-- `pt3_<patternId>_ctrs` — `{stepId: number}` row counters
-- `pt3_<patternId>_cur` — current phase index
-- `pt3_<patternId>_chartRow` — active yoke-chart row (1–44)
-- `pt3_<patternId>_grows` — global row tally (see below)
-- `pt3_cellSz` — chart cell-size pref (10–32px, default 16) — **global**, shared across patterns
-- `pt3_lastPattern` — id of the last-opened pattern
+### State & persistence (per project)
+Progress is **namespaced per project**. Keys:
+- `pt3_projects` — the projects registry: `[{ id, patternId, name, created }]`
+- `pt3_proj_<projectId>_state` — `{stepId: boolean}` completed steps
+- `pt3_proj_<projectId>_ctrs` — `{stepId: number}` row counters
+- `pt3_proj_<projectId>_cur` — current phase index
+- `pt3_proj_<projectId>_chartRow` — active yoke-chart row (1–44)
+- `pt3_proj_<projectId>_grows` — global row tally (see below)
+- `pt3_cellSz` — chart cell-size pref (10–32px, default 16) — **global**, shared across projects
+- `pt3_lastProject` — id of the last-opened project
 
-`save()` writes the active pattern's keys (via `pkey(suffix)`); `loadPatternState()` reads them; `loadGlobal()` loads shared prefs. `migrateLegacy()` runs once on startup to fold the original single-pattern keys (`pt3_state`, `pt3_cur`, …) into the `pt3_peacock-tee_*` namespace so existing progress is preserved. **Keep the `pt3_` prefix and the migration** — removing them breaks saved progress.
+`save()` writes the active project's keys (via `pkey(suffix)` → `pt3_proj_<id>_*`); `loadProjectState()` reads them; `loadGlobal()` loads shared prefs. Two one-time migrations run on startup: `migrateLegacy()` folds the original single-pattern keys (`pt3_state`, …) into `pt3_peacock-tee_*`, then `migrateToProjects()` turns any pattern-namespaced progress into a first project (`pt3_proj_<id>_*`) and writes `pt3_projects`. **Keep the `pt3_` prefix and both migrations** — removing them breaks saved progress.
 
 ### Global row tally
-A read-only **Rows** display in the header. `globalRows` auto-advances by the real change whenever a section row counter (`changeCount`) or the yoke-chart row (`changeChartRow`) moves; clamped taps (counter already at min/max) don't move it. It's a project-wide total per pattern (persisted as `pt3_<id>_grows`), updated in place by `renderGlobalRows()`.
+A read-only **Rows** display in the header. `globalRows` auto-advances by the real change whenever a section row counter (`changeCount`) or the yoke-chart row (`changeChartRow`) moves; clamped taps (counter already at min/max) don't move it. It's a project-wide total (persisted as `pt3_proj_<id>_grows`), updated in place by `renderGlobalRows()`.
 
 ### Chart
 `CHART_B` (the active pattern's `chart`) is a 44-row × 23-stitch array. Each cell: `K` knit, `P` purl, `YO` yarn over, `K2` k2tog, `SK` SKPO, `M1` make one, `E` no-stitch. Displayed top-to-bottom (row 44 at top = worked last) but knitted bottom-to-top (row 1 first). Cell size is the CSS var `--cell-sz`; `A−` / `A+` call `resizeChart(delta)`.
@@ -90,12 +96,13 @@ HTML is fetched **network-first** (fresh page on each load when online; cache fa
 ```
 
 ## Key JS functions
-- `render()` — dispatcher: library vs. pattern view
-- `renderLibrary()` / `renderHeader()` — home screen / per-view header
-- `openPattern(id)` / `goToLibrary()` — view navigation
-- `activatePattern(id)` — swap active-pattern pointers + load its progress
-- `patternProgress(p)` — done/total/pct for a pattern's library card (no activation)
-- `renderPattern()` — header + phase content + tabs + progress + chart wiring
+- `render()` — dispatcher: home / picker / project view
+- `renderHome()` / `renderPicker()` / `renderHeader()` — projects list / pattern chooser / per-view header
+- `openProject(id)` / `goHome()` / `startNewProject()` / `choosePattern(id)` — view navigation
+- `createProject` / `renameProject` / `deleteProject` — manage the projects list
+- `activateProject(id)` / `applyPattern(p)` — open a project: swap active-pattern pointers + load its progress
+- `projectProgress(proj)` — done/total/pct for a project's home card (no activation)
+- `renderProject()` — header + phase content + tabs + progress + chart wiring
 - `renderPhase()` — builds current phase HTML (chart if `hasChart`)
 - `buildChartTracker()` — chart viewport, zoom bar, legend, recap, confirm step
 - `changeChartRow(delta)` — moves chart row ±1 (targeted DOM update); auto-advances `globalRows`

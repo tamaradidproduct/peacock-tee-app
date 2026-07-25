@@ -163,6 +163,30 @@
   }
   .lib-card-fill { height: 100%; background: var(--accent); border-radius: 3px; transition: width 0.3s ease; }
   .lib-card-sub { font-size: 11px; color: var(--muted); }
+  .lib-card-bottom { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+  .proj-actions { display: flex; gap: 4px; flex-shrink: 0; }
+  .proj-act {
+    font-size: 11px; color: var(--muted); background: none;
+    border: 1px solid var(--border); border-radius: 6px;
+    padding: 3px 9px; cursor: pointer; font-family: inherit;
+  }
+  .proj-act:active { background: var(--bg); }
+  .proj-del { color: #a4553f; border-color: #e4c7bd; }
+
+  /* New-project button + empty/picker states */
+  .new-proj-btn {
+    display: block; width: 100%; margin-top: 14px; padding: 14px;
+    background: var(--accent); color: #fff; border: none;
+    border-radius: var(--radius); font-family: inherit;
+    font-size: 15px; font-weight: 600; cursor: pointer;
+    transition: background 0.15s;
+  }
+  .new-proj-btn:active { background: #3c5a4b; }
+  .home-empty { text-align: center; color: var(--muted); font-size: 14px; line-height: 1.6; padding: 24px 12px; }
+  .picker-hint { font-size: 13px; color: var(--muted); margin-bottom: 12px; }
+
+  /* Project title in the header is tappable to rename */
+  .proj-title { cursor: pointer; }
 
   /* ── Phase switch control + tabs ── */
   .phase-name-row { display: flex; align-items: center; gap: 8px; }
@@ -714,27 +738,29 @@ let PHASES = [
 // PATTERN REGISTRY
 // The PHASES / CHART_B literals above are the Peacock Tee pattern. Register it
 // here; the active-pattern pointers (PHASES / CHART_B / CHART_TOTAL /
-// TOTAL_STEPS) are swapped by activatePattern() when a pattern is opened.
+// TOTAL_STEPS) are swapped by applyPattern() when a project is opened.
 // Add future patterns as more entries with their own `phases` and `chart`.
 // ─────────────────────────────────────────────
 const PATTERNS = [
   { id:'peacock-tee', name:'Peacock Tee', badge:'Size S · 97 cm', desc:'Top-down raglan · yoke chart', phases: PHASES, chart: CHART_B },
 ];
+function patternById(id) { return PATTERNS.find(p => p.id === id) || null; }
 
 let TOTAL_STEPS = 0;
 let cur = 0;
 let phaseNavOpen = false;
 let state = {}, ctrs = {}, chartCurrentRow = 1, cellSz = 16, globalRows = 0;
 let activePatternId = null;
-let view = 'library';   // 'library' | 'pattern'
+let activeProjectId = null;
+let projects = [];                 // [{ id, patternId, name, created }]
+let view = 'home';                 // 'home' | 'picker' | 'project'
 
-function activePattern() { return PATTERNS.find(p => p.id === activePatternId) || null; }
+function activePattern() { return patternById(activePatternId); }
+function activeProject() { return projects.find(p => p.id === activeProjectId) || null; }
 
-// Make a pattern active: swap the data pointers, then reset defaults and load
-// that pattern's own saved progress.
-function activatePattern(id) {
-  const p = PATTERNS.find(x => x.id === id) || PATTERNS[0];
-  activePatternId = p.id;
+// Swap the active-pattern data pointers (PHASES / CHART_B / …) + reset step
+// defaults. No load — the caller loads the project's progress.
+function applyPattern(p) {
   PHASES = p.phases;
   CHART_B = p.chart || [];
   CHART_TOTAL = CHART_B.length;
@@ -742,27 +768,80 @@ function activatePattern(id) {
   cur = 0; chartCurrentRow = 1; globalRows = 0;
   state = {}; ctrs = {};
   PHASES.forEach(ph => ph.steps.forEach(s => { state[s.id] = false; if (s.rows) ctrs[s.id] = 0; }));
-  loadPatternState();
 }
 
-// ── Persistence — progress is namespaced per pattern (pt3_<id>_*); cellSz is a
-//    global display pref shared across patterns. ──
-function pkey(suffix) { return 'pt3_' + activePatternId + '_' + suffix; }
+// Open a project: apply its pattern's data, then load that project's progress.
+function activateProject(projectId) {
+  const proj = projects.find(p => p.id === projectId);
+  if (!proj) return false;
+  const pat = patternById(proj.patternId) || PATTERNS[0];
+  activeProjectId = proj.id;
+  activePatternId = pat.id;
+  applyPattern(pat);
+  loadProjectState();
+  return true;
+}
+
+// ── Projects registry (pt3_projects) ──
+function loadProjects() {
+  try { projects = JSON.parse(localStorage.getItem('pt3_projects') || '[]') || []; } catch(e) { projects = []; }
+}
+function saveProjects() {
+  try { localStorage.setItem('pt3_projects', JSON.stringify(projects)); } catch(e) {}
+}
+function newId() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
+
+// Auto-name: pattern name, then "<name> 2", "<name> 3"… for repeats.
+function autoProjectName(pattern) {
+  const n = projects.filter(p => p.patternId === pattern.id).length;
+  return n === 0 ? pattern.name : pattern.name + ' ' + (n + 1);
+}
+
+function createProject(patternId) {
+  const pat = patternById(patternId) || PATTERNS[0];
+  const proj = { id: newId(), patternId: pat.id, name: autoProjectName(pat), created: Date.now() };
+  projects.push(proj);
+  saveProjects();
+  return proj;
+}
+
+function renameProject(projectId) {
+  const proj = projects.find(p => p.id === projectId);
+  if (!proj) return;
+  const name = prompt('Rename project', proj.name);
+  if (name === null) return;
+  const trimmed = name.trim();
+  if (trimmed) { proj.name = trimmed; saveProjects(); resetHeaderKey(); render(); }
+}
+
+function deleteProject(projectId) {
+  const proj = projects.find(p => p.id === projectId);
+  if (!proj) return;
+  if (!confirm('Delete "' + proj.name + '"? This removes its progress.')) return;
+  ['state','ctrs','cur','chartRow','grows'].forEach(k => { try { localStorage.removeItem('pt3_proj_' + projectId + '_' + k); } catch(e){} });
+  projects = projects.filter(p => p.id !== projectId);
+  saveProjects();
+  if (activeProjectId === projectId) { activeProjectId = null; view = 'home'; }
+  render();
+}
+
+// ── Per-project persistence (pt3_proj_<id>_*); cellSz is a global pref. ──
+function pkey(suffix) { return 'pt3_proj_' + activeProjectId + '_' + suffix; }
 
 function save() {
   try { localStorage.setItem('pt3_cellSz', cellSz); } catch(e) {}
-  if (!activePatternId) return;
+  if (!activeProjectId) return;
   try {
     localStorage.setItem(pkey('state'), JSON.stringify(state));
     localStorage.setItem(pkey('ctrs'), JSON.stringify(ctrs));
     localStorage.setItem(pkey('cur'), cur);
     localStorage.setItem(pkey('chartRow'), chartCurrentRow);
     localStorage.setItem(pkey('grows'), globalRows);
-    localStorage.setItem('pt3_lastPattern', activePatternId);
+    localStorage.setItem('pt3_lastProject', activeProjectId);
   } catch(e) {}
 }
 
-function loadPatternState() {
+function loadProjectState() {
   try {
     const st = localStorage.getItem(pkey('state')); if (st) state = Object.assign(state, JSON.parse(st));
     const ct = localStorage.getItem(pkey('ctrs')); if (ct) ctrs = Object.assign(ctrs, JSON.parse(ct));
@@ -772,7 +851,7 @@ function loadPatternState() {
   } catch(e) {}
 }
 
-// Global (non-pattern) prefs.
+// Global (non-project) prefs.
 function loadGlobal() {
   try {
     const cs = localStorage.getItem('pt3_cellSz'); if (cs !== null) cellSz = Math.max(10, Math.min(32, parseInt(cs)));
@@ -780,8 +859,7 @@ function loadGlobal() {
   } catch(e) {}
 }
 
-// One-time migration: fold the original single-pattern save data into the
-// Peacock Tee namespace so existing progress is preserved.
+// One-time migration: original single-pattern save data → Peacock Tee namespace.
 function migrateLegacy() {
   try {
     if (localStorage.getItem('pt3_state') && !localStorage.getItem('pt3_peacock-tee_state')) {
@@ -793,13 +871,33 @@ function migrateLegacy() {
   } catch(e) {}
 }
 
-// Done-steps / total for a pattern, read from its saved state without
-// activating it (for the library cards).
-function patternProgress(p) {
-  const total = p.phases.reduce((a, ph) => a + ph.steps.length, 0);
+// One-time migration: pattern-namespaced progress → a first project per pattern,
+// so existing progress becomes the user's first project.
+function migrateToProjects() {
+  try {
+    if (localStorage.getItem('pt3_projects')) return;
+    const list = [];
+    PATTERNS.forEach(pat => {
+      if (localStorage.getItem('pt3_' + pat.id + '_state')) {
+        const id = newId();
+        list.push({ id, patternId: pat.id, name: pat.name, created: Date.now() });
+        ['state','ctrs','cur','chartRow','grows'].forEach(k => {
+          const v = localStorage.getItem('pt3_' + pat.id + '_' + k);
+          if (v !== null) localStorage.setItem('pt3_proj_' + id + '_' + k, v);
+        });
+      }
+    });
+    localStorage.setItem('pt3_projects', JSON.stringify(list));
+  } catch(e) {}
+}
+
+// Done-steps / total for a project, read from its saved state (for home cards).
+function projectProgress(proj) {
+  const pat = patternById(proj.patternId);
+  const total = pat ? pat.phases.reduce((a, ph) => a + ph.steps.length, 0) : 0;
   let done = 0;
   try {
-    const raw = localStorage.getItem('pt3_' + p.id + '_state');
+    const raw = localStorage.getItem('pt3_proj_' + proj.id + '_state');
     if (raw) done = Object.values(JSON.parse(raw)).filter(Boolean).length;
   } catch(e) {}
   return { done, total, pct: total ? Math.round(done / total * 100) : 0 };
@@ -1187,7 +1285,7 @@ function renderPhase() {
     html += '<div class="nav-btns">';
     if (cur > 0) html += `<button class="nav-btn" onclick="go(${cur - 1})">← Back</button>`;
     if (cur < PHASES.length - 1) html += `<button class="nav-btn primary" onclick="go(${cur + 1})">Next →</button>`;
-    else html += `<button class="nav-btn primary" onclick="alert('Your Peacock Tee is finished! 🎉')">Finished! 🎉</button>`;
+    else html += `<button class="nav-btn primary" onclick="alert('Your ${(activeProject()&&activeProject().name||'project').replace(/'/g,'')} is finished! 🎉')">Finished! 🎉</button>`;
     html += '</div>';
   }
 
@@ -1201,13 +1299,23 @@ function renderStats() {
   if (el) el.style.width = pct + '%';
 }
 
-function render() {
-  if (view === 'library') { renderLibrary(); return; }
-  renderPattern();
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
 }
 
-function renderPattern() {
-  document.body.classList.remove('library-view');
+function render() {
+  if (view === 'home')   { renderHome();   return; }
+  if (view === 'picker') { renderPicker(); return; }
+  renderProject();
+}
+
+function leaveChartMode() {
+  document.body.classList.remove('chart-page', 'chart-idle');
+  clearTimeout(uiIdleTimer);
+  const dock = document.getElementById('chart-dock'); if (dock) dock.innerHTML = '';
+}
+
+function renderProject() {
   renderHeader();
   renderPhase();
   renderTabs();
@@ -1231,46 +1339,76 @@ function renderPattern() {
   }
 }
 
-function renderLibrary() {
-  document.body.classList.remove('chart-page', 'chart-idle');
-  document.body.classList.add('library-view');
-  clearTimeout(uiIdleTimer);
-  const dock = document.getElementById('chart-dock'); if (dock) dock.innerHTML = '';
+// Home = the user's projects (instances of patterns) + a New project button.
+function renderHome() {
+  leaveChartMode();
   renderHeader();
 
-  const cards = PATTERNS.map(p => {
-    const pr = patternProgress(p);
-    return `<button class="lib-card" onclick="openPattern('${p.id}')">
-      <div class="lib-card-top">
-        <span class="lib-card-name">${p.name}</span>
-        <span class="lib-card-pct">${pr.pct}%</span>
-      </div>
-      <div class="lib-card-meta">${[p.badge, p.desc].filter(Boolean).join(' · ')}</div>
-      <div class="lib-card-track"><div class="lib-card-fill" style="width:${pr.pct}%"></div></div>
-      <div class="lib-card-sub">${pr.done} of ${pr.total} steps done</div>
-    </button>`;
-  }).join('');
-  document.getElementById('phase-content').innerHTML = `<div class="lib-list">${cards}</div>`;
+  let html = '<div class="lib-list">';
+  if (!projects.length) {
+    html += `<div class="home-empty">No projects yet.<br>Start one from a pattern below.</div>`;
+  } else {
+    html += projects.map(proj => {
+      const pr = projectProgress(proj);
+      const pat = patternById(proj.patternId);
+      const meta = pat ? [pat.badge, pat.desc].filter(Boolean).join(' · ') : '';
+      return `<div class="lib-card proj-card" onclick="openProject('${proj.id}')">
+        <div class="lib-card-top">
+          <span class="lib-card-name">${escapeHtml(proj.name)}</span>
+          <span class="lib-card-pct">${pr.pct}%</span>
+        </div>
+        <div class="lib-card-meta">${meta}</div>
+        <div class="lib-card-track"><div class="lib-card-fill" style="width:${pr.pct}%"></div></div>
+        <div class="lib-card-bottom">
+          <span class="lib-card-sub">${pr.done} of ${pr.total} steps done</span>
+          <span class="proj-actions">
+            <button class="proj-act" onclick="event.stopPropagation();renameProject('${proj.id}')">Rename</button>
+            <button class="proj-act proj-del" onclick="event.stopPropagation();deleteProject('${proj.id}')">Delete</button>
+          </span>
+        </div>
+      </div>`;
+    }).join('');
+  }
+  html += '</div>';
+  html += `<button class="new-proj-btn" onclick="startNewProject()">＋ New project</button>`;
+  document.getElementById('phase-content').innerHTML = html;
 }
 
-// Build the header for the current view. Only rebuilds when the view/pattern
+// Picker = choose a pattern to start a new project from.
+function renderPicker() {
+  leaveChartMode();
+  renderHeader();
+  const cards = PATTERNS.map(p => `<div class="lib-card proj-card" onclick="choosePattern('${p.id}')">
+      <div class="lib-card-top"><span class="lib-card-name">${p.name}</span></div>
+      <div class="lib-card-meta">${[p.badge, p.desc].filter(Boolean).join(' · ')}</div>
+    </div>`).join('');
+  document.getElementById('phase-content').innerHTML =
+    `<div class="picker-hint">Choose a pattern for your new project</div><div class="lib-list">${cards}</div>`;
+}
+
+// Build the header for the current view. Only rebuilds when the view/project
 // actually changes — otherwise the dynamic bits (progress bar, row count) are
 // updated in place by renderStats()/renderGlobalRows(), so checking off a step
 // doesn't tear down and relayout the header (which caused the content to jump).
 function renderHeader() {
   const h = document.getElementById('header');
   if (!h) return;
-  const key = view === 'pattern' ? 'p:' + activePatternId : 'lib';
+  const key = view === 'project' ? 'proj:' + activeProjectId : view;
   if (h.dataset.key === key) return;
   h.dataset.key = key;
-  if (view === 'library') {
+  if (view === 'home') {
     h.innerHTML = `<div class="header-top lib-brand">${LOGO_SVG}<h1><span>Pattern</span> library</h1></div>`;
     return;
   }
-  const p = activePattern();
+  if (view === 'picker') {
+    h.innerHTML = `<div class="header-top"><h1 class="pattern-h1"><button class="lib-back" onclick="goHome()" aria-label="Back">‹</button>New project</h1></div>`;
+    return;
+  }
+  const proj = activeProject();
+  const pat = activePattern();
   h.innerHTML = `<div class="header-top">
-      <h1 class="pattern-h1"><button class="lib-back" onclick="goToLibrary()" aria-label="Back to patterns">‹</button>${p ? p.name : ''}</h1>
-      ${p && p.badge ? `<span class="header-badge">${p.badge}</span>` : ''}
+      <h1 class="pattern-h1"><button class="lib-back" onclick="goHome()" aria-label="Back to projects">‹</button><span class="proj-title" onclick="renameProject('${proj ? proj.id : ''}')" title="Tap to rename">${proj ? escapeHtml(proj.name) : ''}</span></h1>
+      ${pat && pat.badge ? `<span class="header-badge">${pat.badge}</span>` : ''}
     </div>
     <div class="progress-wrap">
       <div class="progress-track"><div class="progress-fill" id="prog-fill"></div></div>
@@ -1281,21 +1419,35 @@ function renderHeader() {
       <button onclick="showExtractor()" style="font-size:10px;color:var(--muted);background:none;border:1px solid var(--border);border-radius:4px;padding:2px 6px;cursor:pointer;flex-shrink:0;">⬡</button>
     </div>`;
 }
+// Force the header to rebuild on next render (e.g. after a project rename,
+// where the view/project key is unchanged but the title text changed).
+function resetHeaderKey() { const h = document.getElementById('header'); if (h) h.dataset.key = ''; }
 
-function openPattern(id) {
-  activatePattern(id);
-  view = 'pattern';
-  try { localStorage.setItem('pt3_lastPattern', id); } catch(e) {}
+function openProject(id) {
+  if (!activateProject(id)) return;
+  view = 'project';
+  try { localStorage.setItem('pt3_lastProject', id); } catch(e) {}
   window.scrollTo(0, 0);
   render();
 }
 
-function goToLibrary() {
+function goHome() {
   save();
-  view = 'library';
+  view = 'home';
   phaseNavOpen = false;
   window.scrollTo(0, 0);
   render();
+}
+
+function startNewProject() {
+  view = 'picker';
+  window.scrollTo(0, 0);
+  render();
+}
+
+function choosePattern(patternId) {
+  const proj = createProject(patternId);
+  openProject(proj.id);
 }
 
 const UI_IDLE_DELAY = 2500;
@@ -1423,8 +1575,10 @@ window.addEventListener('orientationchange', onViewportChange);
 if (window.visualViewport) window.visualViewport.addEventListener('resize', onViewportChange);
 
 migrateLegacy();
+migrateToProjects();
 loadGlobal();
-view = 'library';
+loadProjects();
+view = 'home';
 render();
 
 // Show extractor if ?extract in URL
