@@ -20,6 +20,7 @@
     --accent-mid: #7a9e8a;
     --done-bg: #e8f0ec;
     --done-text: #2d5a3f;
+    --checkbox-done: #a3a19e;
     --radius: 12px;
     --radius-sm: 8px;
     --cell-sz: 16px;
@@ -249,6 +250,16 @@
   /* ── Content ── */
   .content { padding: 1.25rem; }
   .phase-header { margin-bottom: 1rem; }
+  .phase-head-row { display: flex; align-items: flex-start; gap: 12px; }
+  .phase-head-main { flex: 1; min-width: 0; }
+  .phase-completed { flex-shrink: 0; text-align: center; }
+  .pc-count { font-size: 15px; font-weight: 700; color: var(--accent); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .pc-label { font-size: 10px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); margin-top: 1px; }
+  .phase-folder {
+    flex-shrink: 0; background: none; border: none; color: var(--muted);
+    cursor: pointer; padding: 2px; display: flex; align-items: center; margin-top: 2px;
+  }
+  .phase-folder:active { color: var(--text); }
   .phase-name { font-family: Georgia, serif; font-size: 1.35rem; font-weight: 400; color: var(--text); margin-bottom: 2px; }
   .phase-desc { font-size: 12px; color: var(--muted); }
   /* Collapse animation (idle auto-hide) only applies on the chart page */
@@ -270,28 +281,28 @@
   }
 
   /* ── Steps ── */
-  .steps { display: flex; flex-direction: column; gap: 14px; }
+  .steps { display: flex; flex-direction: column; gap: 0; }
   .step {
     background: transparent; border: none;
-    border-radius: var(--radius-sm); padding: 12px 10px; min-height: 44px;
+    border-bottom: 1px dashed var(--border);
+    padding: 16px 6px; min-height: 44px;
     display: flex; align-items: flex-start; gap: 14px;
     cursor: pointer; transition: background 0.15s;
     -webkit-user-select: none; user-select: none;
   }
   .step:active { background: var(--bg); }
-  .step.done { background: var(--done-bg); }
   .step-circle {
-    width: 26px; height: 26px; border-radius: 50%;
-    border: 1.5px solid var(--border); background: var(--card);
+    width: 22px; height: 22px; border-radius: 6px;
+    border: 2px solid var(--muted); background: transparent;
     flex-shrink: 0; display: flex; align-items: center; justify-content: center;
-    margin-top: 1px; transition: all 0.15s;
+    margin-top: 2px; transition: all 0.15s;
   }
-  .step.done .step-circle { background: var(--accent); border-color: var(--accent); }
+  .step.done .step-circle { background: var(--checkbox-done); border-color: var(--checkbox-done); }
   .step-circle svg { display: none; }
   .step.done .step-circle svg { display: block; }
   .step-body { flex: 1; min-width: 0; }
-  .step-text { font-size: 18px; line-height: 1.5; color: var(--text); }
-  .step.done .step-text { color: var(--done-text); text-decoration: line-through; text-decoration-color: var(--accent-mid); }
+  .step-text { font-size: 16px; line-height: 1.5; color: var(--text); }
+  .step.done .step-text { color: var(--muted); text-decoration: line-through; text-decoration-color: var(--muted); }
   .step-bullets {
     list-style: none; margin: 8px 0 0; padding: 0;
     display: flex; flex-direction: column; gap: 6px;
@@ -777,7 +788,6 @@ const TATTING_PHASES = [
   },
   {
     id:'tat-t1', name:'Triangle 1', desc:'15 rings + 10 chains', countable:true,
-    note:'R = ring · Ch = chain · ds = double stitch · p = picot · j = join.\nEach ring or chain below is one step.',
     steps:[
       {id:'t1r1',  text:'R1: (3ds p) 5 times, 3ds, close, turn'},
       {id:'t1c1',  text:'Ch1: 3ds p (2ds p) 4 times, 3ds, turn'},
@@ -808,7 +818,6 @@ const TATTING_PHASES = [
   },
   {
     id:'tat-t2', name:'Triangle 2', desc:'Mirrors Triangle 1, joined to it', countable:true,
-    note:'Same structure as Triangle 1, with extra joins to the "corresponding" ring/chain on Triangle 1.',
     steps:[
       {id:'t2r1',  text:'R1: 3ds j to last p of corresponding R on Triangle1, (3ds p) 4 times, 3ds, close, turn'},
       {id:'t2c1',  text:'Ch1: 3ds j to first p of corresponding Ch on Triangle1, (2ds p) 4 times, 3ds, turn'},
@@ -1312,8 +1321,13 @@ function togglePhaseNav() {
   renderTabs();
 }
 
-const CHECK_SVG = `<svg width="11" height="9" viewBox="0 0 11 9" fill="none">
+const CHECK_SVG = `<svg width="12" height="10" viewBox="0 0 11 9" fill="none">
         <path d="M1 4L4 7.5L10 1" stroke="white" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>`;
+
+// Folder icon (pattern notes)
+const FOLDER_SVG = `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="M10 5H4a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-8l-2-2z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
       </svg>`;
 
 // App logo — a ball of yarn with a knitting needle.
@@ -1372,16 +1386,25 @@ function stepHtml(s) {
 
 function renderPhase() {
   const p = PHASES[cur];
+  const totalSteps = p.steps.length;
+  const doneSteps  = p.steps.filter(s => state[s.id]).length;
+  const showCompleted = !p.hasChart && totalSteps > 0;
   const phaseHeaderHtml = `<div class="phase-header">
-    <div class="phase-name-row">
-      <div class="phase-name">${p.name}</div>
-      <button class="phase-switch-btn" id="phase-switch-btn" onclick="togglePhaseNav()" aria-label="Switch section">
-        <svg class="chevron" width="10" height="6" viewBox="0 0 10 6" fill="none">
-          <path d="M1 1L5 5L9 1" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-        </svg>
-      </button>
+    <div class="phase-head-row">
+      <div class="phase-head-main">
+        <div class="phase-name-row">
+          <div class="phase-name">${p.name}</div>
+          <button class="phase-switch-btn" id="phase-switch-btn" onclick="togglePhaseNav()" aria-label="Switch section">
+            <svg class="chevron" width="10" height="6" viewBox="0 0 10 6" fill="none">
+              <path d="M1 1L5 5L9 1" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </button>
+        </div>
+        <div class="phase-desc">${p.desc}</div>
+      </div>
+      ${showCompleted ? `<div class="phase-completed"><div class="pc-count">${doneSteps} / ${totalSteps}</div><div class="pc-label">completed</div></div>` : ''}
+      <button class="phase-folder" onclick="openNotes()" aria-label="Pattern notes" title="Pattern notes">${FOLDER_SVG}</button>
     </div>
-    <div class="phase-desc">${p.desc}</div>
     <div class="phase-scroll collapsed" id="phase-tabs"></div>
   </div>`;
 
@@ -1403,6 +1426,12 @@ function renderPhase() {
   }
 
   document.getElementById('phase-content').innerHTML = html;
+}
+
+// Folder icon → pattern notes. No dedicated notes feature yet, so jump to the
+// Materials/setup section (the pattern's supplies & prep).
+function openNotes() {
+  if (PHASES.length) go(0);
 }
 
 function renderStats() {
@@ -1526,11 +1555,6 @@ function renderHeader() {
         <div class="proj-title" onclick="renameProject('${proj ? proj.id : ''}')" title="Tap to rename">${proj ? escapeHtml(proj.name) : ''}</div>
         ${pat && pat.badge ? `<div class="proj-sub">${pat.badge}</div>` : ''}
       </div>
-      <span class="grow" title="Rows / rings / chains completed"><span class="grow-lbl">Rows</span><span class="grow-val" id="grow-val">0</span></span>
-      <button class="hdr-more" onclick="toggleHeaderMeta()" aria-label="Show progress"><svg class="chevron" width="12" height="7" viewBox="0 0 12 7" fill="none"><path d="M1 1L6 6L11 1" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
-    </div>
-    <div class="hdr-meta">
-      <div class="progress-track"><div class="progress-fill" id="prog-fill"></div></div>
     </div>`;
 }
 function toggleHeaderMeta() {
