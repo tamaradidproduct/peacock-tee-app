@@ -260,6 +260,51 @@
     cursor: pointer; padding: 2px; display: flex; align-items: center; margin-top: 2px;
   }
   .phase-folder:active { color: var(--text); }
+
+  /* ── Pattern-notes bottom sheet ── */
+  .sheet-scrim {
+    position: fixed; inset: 0; z-index: 300;
+    background: rgba(42, 37, 32, 0);
+    display: flex; align-items: flex-end;
+    transition: background 0.25s ease;
+  }
+  .sheet-scrim.open { background: rgba(42, 37, 32, 0.45); }
+  .sheet {
+    width: 100%; max-height: 70vh; display: flex; flex-direction: column;
+    background: var(--card); border-radius: 16px 16px 0 0;
+    padding: 8px 0 calc(8px + env(safe-area-inset-bottom));
+    box-shadow: 0 -6px 24px rgba(0,0,0,0.18);
+    transform: translateY(100%);
+    transition: transform 0.28s ease;
+  }
+  .sheet-scrim.open .sheet { transform: translateY(0); }
+  .sheet-grab {
+    width: 36px; height: 4px; border-radius: 2px;
+    background: var(--border); margin: 4px auto 6px;
+  }
+  .sheet-head {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 4px 20px 10px;
+    border-bottom: 1px solid var(--border);
+  }
+  .sheet-title { font-family: Georgia, serif; font-size: 1.2rem; color: var(--text); }
+  .sheet-close {
+    background: none; border: none; color: var(--muted);
+    font-size: 16px; cursor: pointer; padding: 6px;
+  }
+  .sheet-body { overflow-y: auto; padding: 12px 20px 16px; }
+  .note-row {
+    display: flex; align-items: baseline; gap: 12px;
+    padding: 10px 0;
+    border-bottom: 1px dashed var(--border);
+  }
+  .note-row:last-child { border-bottom: none; }
+  .note-term {
+    flex-shrink: 0; min-width: 64px;
+    font-size: 14px; font-weight: 700; color: var(--accent);
+    font-variant-numeric: tabular-nums;
+  }
+  .note-def { font-size: 15px; line-height: 1.5; color: var(--text); }
   .phase-name { font-family: Georgia, serif; font-size: 1.35rem; font-weight: 400; color: var(--text); margin-bottom: 2px; }
   .phase-desc { font-size: 12px; color: var(--muted); }
   /* Collapse animation (idle auto-hide) only applies on the chart page */
@@ -863,8 +908,25 @@ const TATTING_PHASES = [
 // Add future patterns as more entries with their own `phases` (and `chart`).
 // ─────────────────────────────────────────────
 const PATTERNS = [
-  { id:'peacock-tee', name:'Peacock Tee', badge:'Size S · 97 cm', desc:'Top-down raglan · yoke chart', phases: PHASES, chart: CHART_B },
-  { id:'tatted-triangle', name:'Tatted Half-Square Triangle', badge:'≈ 2⅜ in · size 40', desc:'Tatting · two interlocking triangles', phases: TATTING_PHASES },
+  { id:'peacock-tee', name:'Peacock Tee', badge:'Size S · 97 cm', desc:'Top-down raglan · yoke chart', phases: PHASES, chart: CHART_B,
+    notes: [
+      { term:'GSR', def:'German short row — after turning, slip the first st yarn-in-front, move yarn to back and tighten until 2 legs show. On the next row, knit those 2 legs together as one stitch.' },
+      { term:'M1', def:'Make one — pick up the strand between stitches front-to-back and knit through the back loop.' },
+      { term:'m1-R / m1-L', def:'Right- and left-leaning make-one increases, worked before and after the marker stitch.' },
+      { term:'k2tog', def:'Knit two stitches together (right-leaning decrease).' },
+      { term:'SSK / SKPO', def:'Left-leaning decrease — slip, slip, knit the slipped stitches together (or slip 1, knit 1, pass over).' },
+      { term:'YO', def:'Yarn over — wrap the yarn to create a new stitch and an eyelet.' },
+      { term:'BOR', def:'Beginning of round (mid-back on this pattern).' },
+    ] },
+  { id:'tatted-triangle', name:'Tatted Half-Square Triangle', badge:'≈ 2⅜ in · size 40', desc:'Tatting · two interlocking triangles', phases: TATTING_PHASES,
+    notes: [
+      { term:'R', def:'Ring' },
+      { term:'Ch', def:'Chain' },
+      { term:'ds', def:'Double stitch' },
+      { term:'p', def:'Picot' },
+      { term:'j', def:'Join' },
+      { term:'', def:'Each ring or chain in the step list is one step.' },
+    ] },
 ];
 function patternById(id) { return PATTERNS.find(p => p.id === id) || null; }
 
@@ -1325,9 +1387,10 @@ const CHECK_SVG = `<svg width="12" height="10" viewBox="0 0 11 9" fill="none">
         <path d="M1 4L4 7.5L10 1" stroke="white" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
       </svg>`;
 
-// Folder icon (pattern notes)
-const FOLDER_SVG = `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-        <path d="M10 5H4a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-8l-2-2z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
+// Open-book icon (pattern notes / stitch help)
+const NOTES_SVG = `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="M12 6.5C10.6 5.2 8.7 4.5 6.5 4.5c-1.2 0-2.4.2-3.5.7v13c1.1-.5 2.3-.7 3.5-.7 2.2 0 4.1.7 5.5 2 1.4-1.3 3.3-2 5.5-2 1.2 0 2.4.2 3.5.7v-13c-1.1-.5-2.3-.7-3.5-.7-2.2 0-4.1.7-5.5 2z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
+        <path d="M12 6.5v13" stroke="currentColor" stroke-width="1.6"/>
       </svg>`;
 
 // App logo — a ball of yarn with a knitting needle.
@@ -1403,7 +1466,7 @@ function renderPhase() {
         <div class="phase-desc">${p.desc}</div>
       </div>
       ${showCompleted ? `<div class="phase-completed"><div class="pc-count">${doneSteps} / ${totalSteps}</div><div class="pc-label">completed</div></div>` : ''}
-      <button class="phase-folder" onclick="openNotes()" aria-label="Pattern notes" title="Pattern notes">${FOLDER_SVG}</button>
+      ${(activePattern() && activePattern().notes) ? `<button class="phase-folder" onclick="openNotes()" aria-label="Pattern notes" title="Pattern notes">${NOTES_SVG}</button>` : ''}
     </div>
     <div class="phase-scroll collapsed" id="phase-tabs"></div>
   </div>`;
@@ -1428,10 +1491,33 @@ function renderPhase() {
   document.getElementById('phase-content').innerHTML = html;
 }
 
-// Folder icon → pattern notes. No dedicated notes feature yet, so jump to the
-// Materials/setup section (the pattern's supplies & prep).
+// Notes icon → bottom sheet with the pattern's stitch help / abbreviations.
 function openNotes() {
-  if (PHASES.length) go(0);
+  const pat = activePattern();
+  if (!pat || !pat.notes) return;
+  closeNotes(); // never stack two sheets
+  const scrim = document.createElement('div');
+  scrim.className = 'sheet-scrim';
+  scrim.id = 'notes-scrim';
+  scrim.onclick = e => { if (e.target === scrim) closeNotes(); };
+  const rows = pat.notes.map(n => `<div class="note-row">
+      ${n.term ? `<span class="note-term">${escapeHtml(n.term)}</span>` : ''}
+      <span class="note-def">${escapeHtml(n.def)}</span>
+    </div>`).join('');
+  scrim.innerHTML = `<div class="sheet" role="dialog" aria-label="Pattern notes">
+      <div class="sheet-grab"></div>
+      <div class="sheet-head">
+        <div class="sheet-title">Pattern notes</div>
+        <button class="sheet-close" onclick="closeNotes()" aria-label="Close">✕</button>
+      </div>
+      <div class="sheet-body">${rows}</div>
+    </div>`;
+  document.body.appendChild(scrim);
+  requestAnimationFrame(() => scrim.classList.add('open'));
+}
+function closeNotes() {
+  const s = document.getElementById('notes-scrim');
+  if (s) s.remove();
 }
 
 function renderStats() {
@@ -1446,6 +1532,7 @@ function escapeHtml(s) {
 }
 
 function render() {
+  closeNotes(); // navigation/re-render dismisses the notes sheet
   if (view === 'home')   { renderHome();   return; }
   if (view === 'picker') { renderPicker(); return; }
   renderProject();
