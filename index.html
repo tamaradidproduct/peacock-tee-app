@@ -235,6 +235,10 @@
     background: var(--phase-band-bg);
     margin: -1.25rem -1.25rem 1rem;
     padding: 16px 24px;
+    position: sticky;
+    top: var(--header-h, 0px);
+    z-index: 90;
+    transition: top 0.25s ease;
   }
   .phase-head-row { display: flex; align-items: flex-start; gap: 12px; }
   .phase-head-main { flex: 1; min-width: 0; }
@@ -304,6 +308,7 @@
     background: transparent;
     margin: 0; padding: 8px 14px 7px;
     max-height: 300px; overflow: hidden;
+    position: static;
     transition: max-height 0.35s ease, opacity 0.25s ease, margin 0.35s ease;
   }
   body.chart-page .phase-desc {
@@ -1514,9 +1519,10 @@ function escapeHtml(s) {
 
 function render() {
   closeNotes(); // navigation/re-render dismisses the notes sheet
-  if (view === 'home')   { renderHome();   return; }
-  if (view === 'picker') { renderPicker(); return; }
+  if (view === 'home')   { renderHome();   requestAnimationFrame(updatePhaseHeaderOffset); return; }
+  if (view === 'picker') { renderPicker(); requestAnimationFrame(updatePhaseHeaderOffset); return; }
   renderProject();
+  requestAnimationFrame(updatePhaseHeaderOffset);
 }
 
 function leaveChartMode() {
@@ -1796,6 +1802,13 @@ let scrollTicking = false;
 const SCROLL_HIDE_THRESHOLD = 6; // ignore tiny/inertial jitter
 const SCROLL_HIDE_MIN_Y = 40;    // always show header near the top
 
+function updatePhaseHeaderOffset() {
+  const h = document.getElementById('header');
+  if (!h) return;
+  const hidden = h.classList.contains('header-hidden');
+  document.documentElement.style.setProperty('--header-h', hidden ? '0px' : h.offsetHeight + 'px');
+}
+
 function updateHeaderScrollState() {
   scrollTicking = false;
   if (document.body.classList.contains('chart-page')) return;
@@ -1811,6 +1824,7 @@ function updateHeaderScrollState() {
     h.classList.remove('header-hidden');
   }
   lastScrollY = y;
+  updatePhaseHeaderOffset();
 }
 window.addEventListener('scroll', () => {
   if (!scrollTicking) {
@@ -1818,6 +1832,7 @@ window.addEventListener('scroll', () => {
     requestAnimationFrame(updateHeaderScrollState);
   }
 }, { passive: true });
+window.addEventListener('resize', updatePhaseHeaderOffset);
 
 migrateLegacy();
 migrateToProjects();
