@@ -45,21 +45,25 @@
     min-height: 100vh;
   }
 
-  /* ── Chart page: lock viewport, only .chart-vp scrolls ── */
-  /* Pin the header (top) and dock (bottom) with fixed positioning — the one
-     layout that reliably stays within the visible area on mobile (incl. Chrome
-     Custom Tabs). The scrolling middle is positioned between them via JS, so we
-     don't depend on any viewport-height unit (vh/dvh/svh all misbehave here). */
-  body.chart-page { height: 100svh; overflow: hidden; padding-bottom: 0; }
+  /* ── Chart page: lock viewport, only .chart-vp scrolls ──
+     Plain flexbox column: header / content / dock stack top-to-bottom as real
+     flex items. The content area is flex:1 and fills whatever space the header
+     and dock leave behind — no fixed positioning, no JS-measured offsets. When
+     the header collapses (max-height → 0) the content area grows to fill the
+     freed space automatically, because that's just how flex works. */
+  body.chart-page { height: 100svh; overflow: hidden; padding-bottom: 0; display: flex; flex-direction: column; }
   body.chart-page .header {
-    position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+    position: static; flex: 0 0 auto;
     padding: 0.55rem 1.25rem 0.5rem;
-    /* collapse animation only matters on the chart page (idle auto-hide) */
     max-height: 300px; overflow: hidden;
-    transition: max-height 0.35s ease, opacity 0.25s ease, padding 0.35s ease;
+    transition: max-height 0.25s ease, opacity 0.25s ease, padding 0.25s ease, border-color 0.25s ease;
+  }
+  body.chart-page .header.header-hidden {
+    max-height: 0; padding-top: 0; padding-bottom: 0; border-color: transparent;
+    transform: none; /* chart page collapses via max-height, not translateY */
   }
   body.chart-page .content {
-    position: fixed; left: 0; right: 0; top: 0; bottom: 0; /* top/bottom set by JS */
+    flex: 1; min-height: 0;
     overflow: hidden; padding: 0;
     display: flex; flex-direction: column;
   }
@@ -503,10 +507,10 @@
   .chart-confirm-step.done .step-text { color: var(--done-text); text-decoration: line-through; text-decoration-color: var(--accent-mid); }
 
 
-  /* ── Chart dock — row counter + nav, fixed at bottom of chart screen ── */
+  /* ── Chart dock — row counter + nav, bottom flex item of the chart screen ── */
   .chart-dock { display: none; }
   body.chart-page .chart-dock {
-    position: fixed; bottom: 0; left: 0; right: 0; z-index: 100;
+    flex: 0 0 auto;
     display: flex; flex-direction: column;
     background: var(--bg); border-top: 1px solid var(--border);
     padding-bottom: env(safe-area-inset-bottom);
@@ -1663,20 +1667,14 @@ function choosePattern(patternId) {
   openProject(proj.id);
 }
 
-// Position the scrolling middle between the fixed header and fixed dock by
-// measuring their live heights, then re-centre the current row. The header and
-// dock are position:fixed, so they always sit at the real top/bottom of the
-// visible area — no viewport-height unit involved.
+// Header/content/dock are plain flex items on the chart page (see
+// body.chart-page CSS), so the content area's size is handled entirely by
+// flexbox — no measuring or manual positioning needed. This just re-centres
+// the current row, kept as its own function since layout-affecting events
+// (header show/hide, resize) need to re-run the recenter after the browser
+// has settled the new flex sizes.
 function syncChartLayout() {
   if (!document.body.classList.contains('chart-page')) return;
-  const header  = document.querySelector('.header');
-  const dock    = document.getElementById('chart-dock');
-  const content = document.querySelector('.content');
-  if (!content) return;
-  // Use the header's actual bottom edge (not its height) so the content area
-  // expands upward when the header slides away via scroll-hide translateY.
-  content.style.top    = (header ? Math.max(0, header.getBoundingClientRect().bottom) : 0) + 'px';
-  content.style.bottom = (dock   ? dock.getBoundingClientRect().height   : 0) + 'px';
   scrollChartToCurrent('auto');
 }
 
@@ -1761,12 +1759,20 @@ window.addEventListener('orientationchange', onViewportChange);
 if (window.visualViewport) window.visualViewport.addEventListener('resize', onViewportChange);
 
 // Header auto-hide by scroll direction: hide on scroll down, reveal on scroll
-// up. Only applies to normal (window) scrolling — the chart page locks the
-// body and hides its header on an idle timer instead, so it's skipped here.
+// up. Applies to both normal (window) scrolling and, on the chart page, the
+// internal .chart-vp scroll (see the listener wired up in renderPhase()).
+//
+// `scrollAnchor` is the scroll position where the header last changed state,
+// not just the previous frame's position — toggling only once net movement
+// since that anchor clears the threshold. Diffing frame-to-frame instead
+// would flip-flop on the small alternating deltas that momentum/inertial
+// scroll settling produces (a real device effect, easily seen when driving
+// scrollTop programmatically in tests).
 let lastScrollY = window.scrollY;
+let scrollAnchor = window.scrollY;
 let scrollTicking = false;
-const SCROLL_HIDE_THRESHOLD = 6; // ignore tiny/inertial jitter
-const SCROLL_HIDE_MIN_Y = 40;    // always show header near the top
+const SCROLL_HIDE_THRESHOLD = 24; // net movement required before toggling
+const SCROLL_HIDE_MIN_Y = 40;     // always show header near the top
 
 function updatePhaseHeaderOffset() {
   const h = document.getElementById('header');
@@ -1780,25 +1786,19 @@ function updateHeaderScrollState(scrollPos = null) {
   const h = document.getElementById('header');
   if (!h) return;
   const y = scrollPos !== null ? scrollPos : window.scrollY;
-  const delta = y - lastScrollY;
+  const delta = y - scrollAnchor;
   if (y <= SCROLL_HIDE_MIN_Y) {
     h.classList.remove('header-hidden');
+    scrollAnchor = y;
   } else if (delta > SCROLL_HIDE_THRESHOLD) {
     h.classList.add('header-hidden');
+    scrollAnchor = y;
   } else if (delta < -SCROLL_HIDE_THRESHOLD) {
     h.classList.remove('header-hidden');
+    scrollAnchor = y;
   }
   lastScrollY = y;
   updatePhaseHeaderOffset();
-  // On the chart page, the content area's fixed top offset tracks the header's
-  // visible bottom edge, which moves during the header's hide/show transition.
-  if (document.body.classList.contains('chart-page')) {
-    const start = performance.now();
-    (function step(now) {
-      syncChartLayout();
-      if (now - start < 260) requestAnimationFrame(step);
-    })(start);
-  }
 }
 window.addEventListener('scroll', () => {
   if (!scrollTicking) {
