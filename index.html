@@ -20,6 +20,7 @@
     --accent-mid: #7a9e8a;
     --done-bg: #e8f0ec;
     --done-text: #2d5a3f;
+    --checkbox-done: #a3a19e;
     --radius: 12px;
     --radius-sm: 8px;
     --cell-sz: 16px;
@@ -104,9 +105,29 @@
     padding: 1rem 1.25rem 0.875rem;
     position: sticky; top: 0; z-index: 100;
   }
-  .header-top { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 0.75rem; }
+  .header-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; margin-bottom: 0.75rem; }
   .header-top.lib-brand { justify-content: flex-start; gap: 10px; align-items: center; margin-bottom: 0; }
+  .header-top .pattern-h1 { flex: 1; min-width: 0; }
   .lib-logo { display: block; flex-shrink: 0; }
+
+  /* Compact project header: back · (title + size subtitle) · Rows · chevron */
+  .proj-head { align-items: flex-start; gap: 8px; margin-bottom: 0; }
+  .proj-heading { flex: 1; min-width: 0; }
+  .proj-title {
+    font-family: Georgia, serif; font-style: italic; color: var(--accent);
+    font-size: 1.05rem; font-weight: 400; line-height: 1.25;
+    letter-spacing: -0.01em; cursor: pointer;
+  }
+  .proj-sub { font-size: 12px; color: var(--muted); margin-top: 2px; }
+  /* Overall project progress, right side of the header (mirrors the
+     per-section "X / Y completed" treatment). */
+  .proj-progress { flex-shrink: 0; text-align: center; }
+  .pp-pct { font-size: 15px; font-weight: 700; color: var(--accent); font-variant-numeric: tabular-nums; }
+  .pp-label { font-size: 10px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); margin-top: 1px; }
+  .proj-track {
+    height: 4px; background: var(--border); border-radius: 2px;
+    overflow: hidden; margin-top: 10px;
+  }
   .header h1 {
     font-family: Georgia, 'Times New Roman', serif;
     font-size: 1.25rem; font-weight: 400; color: var(--text); letter-spacing: -0.01em;
@@ -116,30 +137,18 @@
     font-size: 11px; font-weight: 500; color: var(--accent);
     background: var(--accent-light); padding: 3px 8px; border-radius: 20px;
   }
-  .progress-wrap { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
-  .progress-track { flex: 1; height: 4px; background: var(--border); border-radius: 2px; overflow: hidden; }
   .progress-fill { height: 100%; background: var(--accent); border-radius: 2px; transition: width 0.4s ease; }
-
-  /* Global row tally (project-wide, in the header) */
-  .grow { display: flex; align-items: center; gap: 5px; flex-shrink: 0; }
-  .grow-lbl {
-    font-size: 10px; font-weight: 600; letter-spacing: 0.04em;
-    text-transform: uppercase; color: var(--muted); margin-right: 1px;
-  }
-  .grow-val {
-    min-width: 24px; text-align: center;
-    font-size: 15px; font-weight: 700; color: var(--text);
-    font-variant-numeric: tabular-nums;
-  }
 
   /* ── Pattern-title header (back to library) ── */
   .pattern-h1 { display: flex; align-items: center; gap: 6px; }
+  /* Back + phase-switch share one circular icon-button style so the two
+     chevrons read as the same control. */
   .lib-back {
     display: inline-flex; align-items: center; justify-content: center;
-    width: 26px; height: 26px; margin-left: -4px; border-radius: 50%;
+    width: 24px; height: 24px; border-radius: 50%;
     border: 1px solid var(--border); background: var(--card);
-    color: var(--text); font-size: 20px; line-height: 1; cursor: pointer;
-    flex-shrink: 0; padding: 0 2px 2px 0;
+    color: var(--muted); cursor: pointer; flex-shrink: 0; padding: 0;
+    transition: background 0.15s;
   }
   .lib-back:active { background: var(--bg); }
 
@@ -187,9 +196,6 @@
   .home-empty { text-align: center; color: var(--muted); font-size: 14px; line-height: 1.6; padding: 24px 12px; }
   .picker-hint { font-size: 13px; color: var(--muted); margin-bottom: 12px; }
 
-  /* Project title in the header is tappable to rename */
-  .proj-title { cursor: pointer; }
-
   /* ── Phase switch control + tabs ── */
   .phase-name-row { display: flex; align-items: center; gap: 8px; }
   .phase-switch-btn {
@@ -223,6 +229,61 @@
   /* ── Content ── */
   .content { padding: 1.25rem; }
   .phase-header { margin-bottom: 1rem; }
+  .phase-head-row { display: flex; align-items: flex-start; gap: 12px; }
+  .phase-head-main { flex: 1; min-width: 0; }
+  .phase-completed { flex-shrink: 0; text-align: center; }
+  .pc-count { font-size: 15px; font-weight: 700; color: var(--accent); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .pc-label { font-size: 10px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); margin-top: 1px; }
+  .phase-folder {
+    flex-shrink: 0; background: none; border: none; color: var(--muted);
+    cursor: pointer; padding: 2px; display: flex; align-items: center; margin-top: 2px;
+  }
+  .phase-folder:active { color: var(--text); }
+
+  /* ── Pattern-notes bottom sheet ── */
+  .sheet-scrim {
+    position: fixed; inset: 0; z-index: 300;
+    background: rgba(42, 37, 32, 0);
+    display: flex; align-items: flex-end;
+    transition: background 0.25s ease;
+  }
+  .sheet-scrim.open { background: rgba(42, 37, 32, 0.45); }
+  .sheet {
+    width: 100%; max-height: 70vh; display: flex; flex-direction: column;
+    background: var(--card); border-radius: 16px 16px 0 0;
+    padding: 8px 0 calc(8px + env(safe-area-inset-bottom));
+    box-shadow: 0 -6px 24px rgba(0,0,0,0.18);
+    transform: translateY(100%);
+    transition: transform 0.28s ease;
+  }
+  .sheet-scrim.open .sheet { transform: translateY(0); }
+  .sheet-grab {
+    width: 36px; height: 4px; border-radius: 2px;
+    background: var(--border); margin: 4px auto 6px;
+  }
+  .sheet-head {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 4px 20px 10px;
+    border-bottom: 1px solid var(--border);
+  }
+  .sheet-title { font-family: Georgia, serif; font-size: 1.2rem; color: var(--text); }
+  .sheet-close {
+    background: none; border: none; color: var(--muted);
+    font-size: 16px; cursor: pointer; padding: 6px;
+  }
+  .sheet-body { overflow-y: auto; padding: 12px 20px 16px; }
+  .note-row {
+    display: flex; align-items: baseline; gap: 12px;
+    padding: 10px 0;
+    border-bottom: 1px dashed var(--border);
+  }
+  .note-row:last-child { border-bottom: none; }
+  .note-term {
+    flex-shrink: 0; min-width: 64px;
+    font-size: 14px; font-weight: 700; color: var(--accent);
+    font-variant-numeric: tabular-nums;
+  }
+  .note-def { font-size: 15px; line-height: 1.5; color: var(--text); }
   .phase-name { font-family: Georgia, serif; font-size: 1.35rem; font-weight: 400; color: var(--text); margin-bottom: 2px; }
   .phase-desc { font-size: 12px; color: var(--muted); }
   /* Collapse animation (idle auto-hide) only applies on the chart page */
@@ -236,36 +297,29 @@
     transition: max-height 0.35s ease, opacity 0.25s ease;
   }
 
-  .note {
-    background: #ede9f5; border-left: 3px solid #6b5b8a;
-    border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
-    padding: 10px 14px; font-size: 13px; color: #6b5b8a;
-    line-height: 1.55; margin-bottom: 1rem;
-  }
-
   /* ── Steps ── */
-  .steps { display: flex; flex-direction: column; gap: 14px; }
+  .steps { display: flex; flex-direction: column; gap: 0; }
   .step {
     background: transparent; border: none;
-    border-radius: var(--radius-sm); padding: 12px 10px; min-height: 44px;
+    border-bottom: 1px dashed var(--border);
+    padding: 16px 6px; min-height: 44px;
     display: flex; align-items: flex-start; gap: 14px;
     cursor: pointer; transition: background 0.15s;
     -webkit-user-select: none; user-select: none;
   }
   .step:active { background: var(--bg); }
-  .step.done { background: var(--done-bg); }
   .step-circle {
-    width: 26px; height: 26px; border-radius: 50%;
-    border: 1.5px solid var(--border); background: var(--card);
+    width: 22px; height: 22px; border-radius: 6px;
+    border: 2px solid var(--muted); background: transparent;
     flex-shrink: 0; display: flex; align-items: center; justify-content: center;
-    margin-top: 1px; transition: all 0.15s;
+    margin-top: 2px; transition: all 0.15s;
   }
-  .step.done .step-circle { background: var(--accent); border-color: var(--accent); }
+  .step.done .step-circle { background: var(--checkbox-done); border-color: var(--checkbox-done); }
   .step-circle svg { display: none; }
   .step.done .step-circle svg { display: block; }
   .step-body { flex: 1; min-width: 0; }
-  .step-text { font-size: 18px; line-height: 1.5; color: var(--text); }
-  .step.done .step-text { color: var(--done-text); text-decoration: line-through; text-decoration-color: var(--accent-mid); }
+  .step-text { font-size: 16px; line-height: 1.5; color: var(--text); }
+  .step.done .step-text { color: var(--muted); text-decoration: line-through; text-decoration-color: var(--muted); }
   .step-bullets {
     list-style: none; margin: 8px 0 0; padding: 0;
     display: flex; flex-direction: column; gap: 6px;
@@ -678,7 +732,6 @@ let PHASES = [
   },
   {
     id:'gsr', name:'Short rows', desc:'German short rows · neckline shaping',
-    note:'GSR: after turning, slip first st yarn-in-front, move yarn to back and tighten until 2 legs show. On the next row, knit those 2 legs together as one stitch.',
     steps:[
       {id:'g1', text:'Row 1 (RS): K 27 sts. Turn.'},
       {id:'g2', text:'Row 2 (WS): GSR, p 53 sts. Turn.'},
@@ -750,8 +803,7 @@ const TATTING_PHASES = [
     ]
   },
   {
-    id:'tat-t1', name:'Triangle 1', desc:'15 rings + 10 chains',
-    note:'R = ring · Ch = chain · ds = double stitch · p = picot · j = join.\nEach ring or chain below is one step.',
+    id:'tat-t1', name:'Triangle 1', desc:'15 rings + 10 chains', countable:true,
     steps:[
       {id:'t1r1',  text:'R1: (3ds p) 5 times, 3ds, close, turn'},
       {id:'t1c1',  text:'Ch1: 3ds p (2ds p) 4 times, 3ds, turn'},
@@ -781,8 +833,7 @@ const TATTING_PHASES = [
     ]
   },
   {
-    id:'tat-t2', name:'Triangle 2', desc:'Mirrors Triangle 1, joined to it',
-    note:'Same structure as Triangle 1, with extra joins to the "corresponding" ring/chain on Triangle 1.',
+    id:'tat-t2', name:'Triangle 2', desc:'Mirrors Triangle 1, joined to it', countable:true,
     steps:[
       {id:'t2r1',  text:'R1: 3ds j to last p of corresponding R on Triangle1, (3ds p) 4 times, 3ds, close, turn'},
       {id:'t2c1',  text:'Ch1: 3ds j to first p of corresponding Ch on Triangle1, (2ds p) 4 times, 3ds, turn'},
@@ -828,8 +879,25 @@ const TATTING_PHASES = [
 // Add future patterns as more entries with their own `phases` (and `chart`).
 // ─────────────────────────────────────────────
 const PATTERNS = [
-  { id:'peacock-tee', name:'Peacock Tee', badge:'Size S · 97 cm', desc:'Top-down raglan · yoke chart', phases: PHASES, chart: CHART_B },
-  { id:'tatted-triangle', name:'Tatted Half-Square Triangle', badge:'≈ 2⅜ in · size 40', desc:'Tatting · two interlocking triangles', phases: TATTING_PHASES },
+  { id:'peacock-tee', name:'Peacock Tee', badge:'Size S · 97 cm', desc:'Top-down raglan · yoke chart', phases: PHASES, chart: CHART_B,
+    notes: [
+      { term:'GSR', def:'German short row — after turning, slip the first st yarn-in-front, move yarn to back and tighten until 2 legs show. On the next row, knit those 2 legs together as one stitch.' },
+      { term:'M1', def:'Make one — pick up the strand between stitches front-to-back and knit through the back loop.' },
+      { term:'m1-R / m1-L', def:'Right- and left-leaning make-one increases, worked before and after the marker stitch.' },
+      { term:'k2tog', def:'Knit two stitches together (right-leaning decrease).' },
+      { term:'SSK / SKPO', def:'Left-leaning decrease — slip, slip, knit the slipped stitches together (or slip 1, knit 1, pass over).' },
+      { term:'YO', def:'Yarn over — wrap the yarn to create a new stitch and an eyelet.' },
+      { term:'BOR', def:'Beginning of round (mid-back on this pattern).' },
+    ] },
+  { id:'tatted-triangle', name:'Tatted Half-Square Triangle', badge:'≈ 2⅜ in · size 40', desc:'Tatting · two interlocking triangles', phases: TATTING_PHASES,
+    notes: [
+      { term:'R', def:'Ring' },
+      { term:'Ch', def:'Chain' },
+      { term:'ds', def:'Double stitch' },
+      { term:'p', def:'Picot' },
+      { term:'j', def:'Join' },
+      { term:'', def:'Each ring or chain in the step list is one step.' },
+    ] },
 ];
 function patternById(id) { return PATTERNS.find(p => p.id === id) || null; }
 
@@ -1286,8 +1354,20 @@ function togglePhaseNav() {
   renderTabs();
 }
 
-const CHECK_SVG = `<svg width="11" height="9" viewBox="0 0 11 9" fill="none">
+const CHECK_SVG = `<svg width="12" height="10" viewBox="0 0 11 9" fill="none">
         <path d="M1 4L4 7.5L10 1" stroke="white" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>`;
+
+// Back chevron — same stroke weight/shape as the phase-switch chevron so the
+// two circular icon buttons look like one family.
+const BACK_CHEVRON_SVG = `<svg class="chevron" width="6" height="10" viewBox="0 0 6 10" fill="none" aria-hidden="true">
+        <path d="M5 1L1 5L5 9" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>`;
+
+// Open-book icon (pattern notes / stitch help)
+const NOTES_SVG = `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="M12 6.5C10.6 5.2 8.7 4.5 6.5 4.5c-1.2 0-2.4.2-3.5.7v13c1.1-.5 2.3-.7 3.5-.7 2.2 0 4.1.7 5.5 2 1.4-1.3 3.3-2 5.5-2 1.2 0 2.4.2 3.5.7v-13c-1.1-.5-2.3-.7-3.5-.7-2.2 0-4.1.7-5.5 2z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
+        <path d="M12 6.5v13" stroke="currentColor" stroke-width="1.6"/>
       </svg>`;
 
 // App logo — a ball of yarn with a knitting needle.
@@ -1346,16 +1426,25 @@ function stepHtml(s) {
 
 function renderPhase() {
   const p = PHASES[cur];
+  const totalSteps = p.steps.length;
+  const doneSteps  = p.steps.filter(s => state[s.id]).length;
+  const showCompleted = !p.hasChart && totalSteps > 0;
   const phaseHeaderHtml = `<div class="phase-header">
-    <div class="phase-name-row">
-      <div class="phase-name">${p.name}</div>
-      <button class="phase-switch-btn" id="phase-switch-btn" onclick="togglePhaseNav()" aria-label="Switch section">
-        <svg class="chevron" width="10" height="6" viewBox="0 0 10 6" fill="none">
-          <path d="M1 1L5 5L9 1" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-        </svg>
-      </button>
+    <div class="phase-head-row">
+      <div class="phase-head-main">
+        <div class="phase-name-row">
+          <div class="phase-name">${p.name}</div>
+          <button class="phase-switch-btn" id="phase-switch-btn" onclick="togglePhaseNav()" aria-label="Switch section">
+            <svg class="chevron" width="10" height="6" viewBox="0 0 10 6" fill="none">
+              <path d="M1 1L5 5L9 1" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </button>
+        </div>
+        <div class="phase-desc">${p.desc}</div>
+      </div>
+      ${showCompleted ? `<div class="phase-completed"><div class="pc-count">${doneSteps} / ${totalSteps}</div><div class="pc-label">completed</div></div>` : ''}
+      ${(activePattern() && activePattern().notes) ? `<button class="phase-folder" onclick="openNotes()" aria-label="Pattern notes" title="Pattern notes">${NOTES_SVG}</button>` : ''}
     </div>
-    <div class="phase-desc">${p.desc}</div>
     <div class="phase-scroll collapsed" id="phase-tabs"></div>
   </div>`;
 
@@ -1366,7 +1455,6 @@ function renderPhase() {
     html += buildChartTracker(confirmStep, phaseHeaderHtml);
   } else {
     html += phaseHeaderHtml;
-    if (p.note) html += `<div class="note">${p.note.replace(/\n/g, '<br>')}</div>`;
     if (p.steps.length) html += '<div class="steps">' + p.steps.map(stepHtml).join('') + '</div>';
 
     html += '<div class="nav-btns">';
@@ -1379,11 +1467,42 @@ function renderPhase() {
   document.getElementById('phase-content').innerHTML = html;
 }
 
+// Notes icon → bottom sheet with the pattern's stitch help / abbreviations.
+function openNotes() {
+  const pat = activePattern();
+  if (!pat || !pat.notes) return;
+  closeNotes(); // never stack two sheets
+  const scrim = document.createElement('div');
+  scrim.className = 'sheet-scrim';
+  scrim.id = 'notes-scrim';
+  scrim.onclick = e => { if (e.target === scrim) closeNotes(); };
+  const rows = pat.notes.map(n => `<div class="note-row">
+      ${n.term ? `<span class="note-term">${escapeHtml(n.term)}</span>` : ''}
+      <span class="note-def">${escapeHtml(n.def)}</span>
+    </div>`).join('');
+  scrim.innerHTML = `<div class="sheet" role="dialog" aria-label="Pattern notes">
+      <div class="sheet-grab"></div>
+      <div class="sheet-head">
+        <div class="sheet-title">Pattern notes</div>
+        <button class="sheet-close" onclick="closeNotes()" aria-label="Close">✕</button>
+      </div>
+      <div class="sheet-body">${rows}</div>
+    </div>`;
+  document.body.appendChild(scrim);
+  requestAnimationFrame(() => scrim.classList.add('open'));
+}
+function closeNotes() {
+  const s = document.getElementById('notes-scrim');
+  if (s) s.remove();
+}
+
 function renderStats() {
   const done = doneCount();
   const pct  = TOTAL_STEPS ? Math.round(done / TOTAL_STEPS * 100) : 0;
   const el = document.getElementById('prog-fill');
   if (el) el.style.width = pct + '%';
+  const p = document.getElementById('prog-pct');
+  if (p) p.textContent = pct + '%';
 }
 
 function escapeHtml(s) {
@@ -1391,6 +1510,7 @@ function escapeHtml(s) {
 }
 
 function render() {
+  closeNotes(); // navigation/re-render dismisses the notes sheet
   if (view === 'home')   { renderHome();   return; }
   if (view === 'picker') { renderPicker(); return; }
   renderProject();
@@ -1488,23 +1608,23 @@ function renderHeader() {
     return;
   }
   if (view === 'picker') {
-    h.innerHTML = `<div class="header-top"><h1 class="pattern-h1"><button class="lib-back" onclick="goHome()" aria-label="Back">‹</button>New project</h1></div>`;
+    h.innerHTML = `<div class="header-top"><h1 class="pattern-h1"><button class="lib-back" onclick="goHome()" aria-label="Back">${BACK_CHEVRON_SVG}</button>New project</h1></div>`;
     return;
   }
   const proj = activeProject();
   const pat = activePattern();
-  h.innerHTML = `<div class="header-top">
-      <h1 class="pattern-h1"><button class="lib-back" onclick="goHome()" aria-label="Back to projects">‹</button><span class="proj-title" onclick="renameProject('${proj ? proj.id : ''}')" title="Tap to rename">${proj ? escapeHtml(proj.name) : ''}</span></h1>
-      ${pat && pat.badge ? `<span class="header-badge">${pat.badge}</span>` : ''}
-    </div>
-    <div class="progress-wrap">
-      <div class="progress-track"><div class="progress-fill" id="prog-fill"></div></div>
-      <div class="grow" title="Total rows knit across all sections">
-        <span class="grow-lbl">Rows</span>
-        <span class="grow-val" id="grow-val">0</span>
+  h.innerHTML = `<div class="header-top proj-head">
+      <button class="lib-back" onclick="goHome()" aria-label="Back to projects">${BACK_CHEVRON_SVG}</button>
+      <div class="proj-heading">
+        <div class="proj-title" onclick="renameProject('${proj ? proj.id : ''}')" title="Tap to rename">${proj ? escapeHtml(proj.name) : ''}</div>
+        ${pat && pat.badge ? `<div class="proj-sub">${pat.badge}</div>` : ''}
       </div>
-      <button onclick="showExtractor()" style="font-size:10px;color:var(--muted);background:none;border:1px solid var(--border);border-radius:4px;padding:2px 6px;cursor:pointer;flex-shrink:0;">⬡</button>
-    </div>`;
+      <div class="proj-progress" title="Overall pattern progress">
+        <div class="pp-pct" id="prog-pct">0%</div>
+        <div class="pp-label">complete</div>
+      </div>
+    </div>
+    <div class="proj-track"><div class="progress-fill" id="prog-fill"></div></div>`;
 }
 // Force the header to rebuild on next render (e.g. after a project rename,
 // where the view/project key is unchanged but the title text changed).
@@ -1593,7 +1713,13 @@ function go(i) {
 }
 
 function toggleStep(id) {
-  state[id] = !state[id]; save(); render();
+  const nowDone = !state[id];
+  state[id] = nowDone;
+  // On "countable" phases (e.g. tatting rings/chains) each completed step is one
+  // unit of work — advance the Rows tally by the real change.
+  const ph = PHASES.find(p => p.steps.some(s => s.id === id));
+  if (ph && ph.countable) globalRows = Math.max(0, globalRows + (nowDone ? 1 : -1));
+  save(); render();
 }
 
 function changeCount(id, delta) {
