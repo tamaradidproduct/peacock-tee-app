@@ -482,11 +482,7 @@
 
   /* Chart legend */
   .chart-legend {
-    border-top: 1px solid var(--border);
-    padding: 6px 12px 7px;
-    display: flex; flex-wrap: wrap; gap: 8px 14px;
-    font-size: 10px; color: var(--muted);
-    max-height: 200px; overflow: hidden;
+    display: none;
     transition: max-height 0.35s ease, opacity 0.25s ease, padding 0.35s ease, border-color 0.35s ease;
   }
 
@@ -883,12 +879,16 @@ const TATTING_PHASES = [
 const PATTERNS = [
   { id:'peacock-tee', name:'Peacock Tee', badge:'Size S · 97 cm', desc:'Top-down raglan · yoke chart', phases: PHASES, chart: CHART_B,
     notes: [
-      { term:'GSR', def:'German short row — after turning, slip the first st yarn-in-front, move yarn to back and tighten until 2 legs show. On the next row, knit those 2 legs together as one stitch.' },
-      { term:'M1', def:'Make one — pick up the strand between stitches front-to-back and knit through the back loop.' },
-      { term:'m1-R / m1-L', def:'Right- and left-leaning make-one increases, worked before and after the marker stitch.' },
+      { term:'Knit', def:'K — plain knit stitch.' },
+      { term:'Purl', def:'P — purl stitch.' },
+      { term:'Yarn over', def:'YO — wrap the yarn to create a new stitch and an eyelet.' },
       { term:'k2tog', def:'Knit two stitches together (right-leaning decrease).' },
-      { term:'SSK / SKPO', def:'Left-leaning decrease — slip, slip, knit the slipped stitches together (or slip 1, knit 1, pass over).' },
-      { term:'YO', def:'Yarn over — wrap the yarn to create a new stitch and an eyelet.' },
+      { term:'SKPO', def:'Slip, knit, pass over (left-leaning decrease).' },
+      { term:'M1', def:'Make one — pick up the strand between stitches front-to-back and knit through the back loop.' },
+      { term:'No stitch', def:'E — an empty cell used to center the pattern; the stitch does not exist.' },
+      { term:'GSR', def:'German short row — after turning, slip the first st yarn-in-front, move yarn to back and tighten until 2 legs show. On the next row, knit those 2 legs together as one stitch.' },
+      { term:'m1-R / m1-L', def:'Right- and left-leaning make-one increases, worked before and after the marker stitch.' },
+      { term:'SSK', def:'Slip, slip, knit (left-leaning decrease).' },
       { term:'BOR', def:'Beginning of round (mid-back on this pattern).' },
     ] },
   { id:'tatted-triangle', name:'Tatted Half-Square Triangle', badge:'≈ 2⅜ in · size 40', desc:'Tatting · two interlocking triangles', phases: TATTING_PHASES,
