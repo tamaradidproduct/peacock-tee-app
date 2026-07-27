@@ -104,12 +104,11 @@
     border-bottom: 1px solid var(--border);
     padding: 1rem 1.25rem 0.875rem;
     position: sticky; top: 0; z-index: 100;
-    max-height: 200px; overflow: hidden;
-    transition: max-height 0.25s ease, border-color 0.25s ease;
+    transition: transform 0.25s ease;
   }
   /* Scroll-direction auto-hide (non-chart pages only — the chart page has
      its own idle-based auto-hide and doesn't use window scroll). */
-  .header.header-hidden { max-height: 0; border-color: transparent; }
+  .header.header-hidden { transform: translateY(-100%); }
   .header-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; margin-bottom: 0.75rem; }
   .header-top.lib-brand { justify-content: flex-start; gap: 10px; align-items: center; margin-bottom: 0; }
   .header-top .pattern-h1 { flex: 1; min-width: 0; }
