@@ -1522,7 +1522,10 @@ function render() {
   if (view === 'home')   { renderHome();   requestAnimationFrame(updatePhaseHeaderOffset); return; }
   if (view === 'picker') { renderPicker(); requestAnimationFrame(updatePhaseHeaderOffset); return; }
   renderProject();
-  requestAnimationFrame(updatePhaseHeaderOffset);
+  requestAnimationFrame(() => {
+    updatePhaseHeaderOffset();
+    updateHeaderScrollState();
+  });
 }
 
 function leaveChartMode() {
