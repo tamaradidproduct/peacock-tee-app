@@ -105,7 +105,11 @@
     border-bottom: 1px solid var(--border);
     padding: 1rem 1.25rem 0.875rem;
     position: sticky; top: 0; z-index: 100;
+    transition: transform 0.25s ease;
   }
+  /* Scroll-direction auto-hide (non-chart pages only — the chart page has
+     its own idle-based auto-hide and doesn't use window scroll). */
+  .header.header-hidden { transform: translateY(-100%); }
   .header-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; margin-bottom: 0.75rem; }
   .header-top.lib-brand { justify-content: flex-start; gap: 10px; align-items: center; margin-bottom: 0; }
   .header-top .pattern-h1 { flex: 1; min-width: 0; }
@@ -1783,6 +1787,37 @@ function onViewportChange() {
 window.addEventListener('resize', onViewportChange);
 window.addEventListener('orientationchange', onViewportChange);
 if (window.visualViewport) window.visualViewport.addEventListener('resize', onViewportChange);
+
+// Header auto-hide by scroll direction: hide on scroll down, reveal on scroll
+// up. Only applies to normal (window) scrolling — the chart page locks the
+// body and hides its header on an idle timer instead, so it's skipped here.
+let lastScrollY = window.scrollY;
+let scrollTicking = false;
+const SCROLL_HIDE_THRESHOLD = 6; // ignore tiny/inertial jitter
+const SCROLL_HIDE_MIN_Y = 40;    // always show header near the top
+
+function updateHeaderScrollState() {
+  scrollTicking = false;
+  if (document.body.classList.contains('chart-page')) return;
+  const h = document.getElementById('header');
+  if (!h) return;
+  const y = window.scrollY;
+  const delta = y - lastScrollY;
+  if (y <= SCROLL_HIDE_MIN_Y) {
+    h.classList.remove('header-hidden');
+  } else if (delta > SCROLL_HIDE_THRESHOLD) {
+    h.classList.add('header-hidden');
+  } else if (delta < -SCROLL_HIDE_THRESHOLD) {
+    h.classList.remove('header-hidden');
+  }
+  lastScrollY = y;
+}
+window.addEventListener('scroll', () => {
+  if (!scrollTicking) {
+    scrollTicking = true;
+    requestAnimationFrame(updateHeaderScrollState);
+  }
+}, { passive: true });
 
 migrateLegacy();
 migrateToProjects();
