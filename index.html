@@ -1465,6 +1465,21 @@ function renderPhase() {
   }
 
   document.getElementById('phase-content').innerHTML = html;
+
+  // On chart pages, apply header scroll animation to the chart viewport scroll
+  if (p.hasChart) {
+    requestAnimationFrame(() => {
+      const chartVp = document.getElementById('chart-vp');
+      if (chartVp) {
+        chartVp.addEventListener('scroll', () => {
+          if (!scrollTicking) {
+            scrollTicking = true;
+            requestAnimationFrame(() => updateHeaderScrollState(chartVp.scrollTop));
+          }
+        }, { passive: true });
+      }
+    });
+  }
 }
 
 // Notes icon → bottom sheet with the pattern's stitch help / abbreviations.
@@ -1753,12 +1768,11 @@ function updatePhaseHeaderOffset() {
   document.documentElement.style.setProperty('--header-h', hidden ? '0px' : h.offsetHeight + 'px');
 }
 
-function updateHeaderScrollState() {
+function updateHeaderScrollState(scrollPos = null) {
   scrollTicking = false;
-  if (document.body.classList.contains('chart-page')) return;
   const h = document.getElementById('header');
   if (!h) return;
-  const y = window.scrollY;
+  const y = scrollPos !== null ? scrollPos : window.scrollY;
   const delta = y - lastScrollY;
   if (y <= SCROLL_HIDE_MIN_Y) {
     h.classList.remove('header-hidden');
