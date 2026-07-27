@@ -300,19 +300,14 @@
   .note-def { font-size: 15px; line-height: 1.5; color: var(--text); }
   .phase-name { font-family: Georgia, serif; font-size: 1.35rem; font-weight: 400; color: var(--text); margin-bottom: 2px; }
   .phase-desc { font-size: 12px; color: var(--muted); }
-  /* Collapse animation (idle auto-hide) only applies on the chart page.
-     The banded background is a non-chart-page treatment only — inside the
-     chart's fixed overlay the card background already applies. */
+  /* Chart page: inside the fixed overlay the card background already applies */
   body.chart-page .phase-header {
     background: transparent;
     margin: 0; padding: 8px 14px 7px;
-    max-height: 300px; overflow: hidden;
     position: static;
-    transition: max-height 0.35s ease, opacity 0.25s ease, margin 0.35s ease;
   }
   body.chart-page .phase-desc {
-    max-height: 40px; overflow: hidden;
-    transition: max-height 0.35s ease, opacity 0.25s ease;
+    overflow: hidden;
   }
 
   /* ── Steps ── */
@@ -509,17 +504,6 @@
   .chart-confirm-step.done .step-circle svg { display: block; }
   .chart-confirm-step.done .step-text { color: var(--done-text); text-decoration: line-through; text-decoration-color: var(--accent-mid); }
 
-  /* ── Idle: collapse panels, leaving the minimized top bar (phase name +
-        chevron) as the affordance to bring everything back ── */
-  body.chart-idle .header,
-  body.chart-idle .phase-desc,
-  body.chart-idle .chart-ctrl-bar,
-  body.chart-idle .chart-confirm-step,
-  body.chart-idle .chart-dock .nav-btns {
-    max-height: 0; opacity: 0;
-    padding-top: 0; padding-bottom: 0; margin-top: 0; margin-bottom: 0;
-    border-color: transparent;
-  }
 
   /* ── Chart dock — row counter + nav, fixed at bottom of chart screen ── */
   .chart-dock { display: none; }
@@ -1525,8 +1509,7 @@ function render() {
 }
 
 function leaveChartMode() {
-  document.body.classList.remove('chart-page', 'chart-idle');
-  clearTimeout(uiIdleTimer);
+  document.body.classList.remove('chart-page');
   const dock = document.getElementById('chart-dock'); if (dock) dock.innerHTML = '';
 }
 
@@ -1545,10 +1528,7 @@ function renderProject() {
   if (isChart) {
     renderChartDock();
     requestAnimationFrame(() => requestAnimationFrame(syncChartLayout));
-    wakeUI();
   } else {
-    document.body.classList.remove('chart-idle');
-    clearTimeout(uiIdleTimer);
     document.getElementById('chart-dock').innerHTML = '';
   }
 }
@@ -1663,10 +1643,6 @@ function choosePattern(patternId) {
   openProject(proj.id);
 }
 
-const UI_IDLE_DELAY = 2500;
-const PANEL_ANIM_MS = 420;
-let uiIdleTimer = null;
-
 // Position the scrolling middle between the fixed header and fixed dock by
 // measuring their live heights, then re-centre the current row. The header and
 // dock are position:fixed, so they always sit at the real top/bottom of the
@@ -1681,37 +1657,6 @@ function syncChartLayout() {
   content.style.bottom = (dock   ? dock.getBoundingClientRect().height   : 0) + 'px';
   scrollChartToCurrent('auto');
 }
-
-// Keep the layout in sync while the panels (and thus the header/dock heights)
-// animate open/closed — re-measure every frame for the duration.
-function syncChartLayoutAnimated() {
-  const start = performance.now();
-  (function step(now) {
-    syncChartLayout();
-    if (now - start < PANEL_ANIM_MS) requestAnimationFrame(step);
-  })(start);
-}
-
-function scheduleIdle() {
-  clearTimeout(uiIdleTimer);
-  uiIdleTimer = setTimeout(() => {
-    document.body.classList.add('chart-idle');
-    syncChartLayoutAnimated();
-  }, UI_IDLE_DELAY);
-}
-
-function wakeUI() {
-  const wasIdle = document.body.classList.contains('chart-idle');
-  document.body.classList.remove('chart-idle');
-  if (wasIdle) syncChartLayoutAnimated();
-  scheduleIdle();
-}
-
-document.addEventListener('pointerdown', e => {
-  if (!document.body.classList.contains('chart-page')) return;
-  if (e.target.closest('.chart-vp') || e.target.closest('.chart-footer') || e.target.closest('.chart-recenter')) return;
-  wakeUI();
-});
 
 function go(i) {
   cur = i; phaseNavOpen = false; save(); render();
