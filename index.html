@@ -394,10 +394,10 @@
 
   /* ── Nav buttons — fixed at bottom ── */
   .nav-btns {
-    position: fixed; bottom: 0; left: 0; right: 0;
     display: flex; gap: 10px;
-    background: var(--bg); padding: 12px 1.25rem 16px;
-    border-top: 1px solid var(--border); z-index: 50;
+    margin: 20px -1.25rem 0;
+    padding: 16px 1.25rem calc(16px + env(safe-area-inset-bottom));
+    border-top: 1px solid var(--border);
   }
   .nav-btn {
     flex: 1; padding: 14px; border-radius: var(--radius);
