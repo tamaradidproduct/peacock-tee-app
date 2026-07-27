@@ -1673,7 +1673,9 @@ function syncChartLayout() {
   const dock    = document.getElementById('chart-dock');
   const content = document.querySelector('.content');
   if (!content) return;
-  content.style.top    = (header ? header.getBoundingClientRect().height : 0) + 'px';
+  // Use the header's actual bottom edge (not its height) so the content area
+  // expands upward when the header slides away via scroll-hide translateY.
+  content.style.top    = (header ? Math.max(0, header.getBoundingClientRect().bottom) : 0) + 'px';
   content.style.bottom = (dock   ? dock.getBoundingClientRect().height   : 0) + 'px';
   scrollChartToCurrent('auto');
 }
@@ -1788,6 +1790,15 @@ function updateHeaderScrollState(scrollPos = null) {
   }
   lastScrollY = y;
   updatePhaseHeaderOffset();
+  // On the chart page, the content area's fixed top offset tracks the header's
+  // visible bottom edge, which moves during the header's hide/show transition.
+  if (document.body.classList.contains('chart-page')) {
+    const start = performance.now();
+    (function step(now) {
+      syncChartLayout();
+      if (now - start < 260) requestAnimationFrame(step);
+    })(start);
+  }
 }
 window.addEventListener('scroll', () => {
   if (!scrollTicking) {
