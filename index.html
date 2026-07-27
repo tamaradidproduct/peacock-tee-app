@@ -21,6 +21,7 @@
     --done-bg: #e8f0ec;
     --done-text: #2d5a3f;
     --checkbox-done: #a3a19e;
+    --phase-band-bg: #e5e1da;
     --radius: 12px;
     --radius-sm: 8px;
     --cell-sz: 16px;
@@ -122,8 +123,8 @@
   /* Overall project progress, right side of the header (mirrors the
      per-section "X / Y completed" treatment). */
   .proj-progress { flex-shrink: 0; text-align: center; }
-  .pp-pct { font-size: 15px; font-weight: 700; color: var(--accent); font-variant-numeric: tabular-nums; }
-  .pp-label { font-size: 10px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); margin-top: 1px; }
+  .pp-pct { font-size: 12px; font-weight: 700; color: var(--accent); font-variant-numeric: tabular-nums; }
+  .pp-label { font-size: 8px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); margin-top: 1px; }
   .header h1 {
     font-family: Georgia, 'Times New Roman', serif;
     font-size: 1.25rem; font-weight: 400; color: var(--text); letter-spacing: -0.01em;
@@ -223,17 +224,28 @@
 
   /* ── Content ── */
   .content { padding: 1.25rem; }
-  .phase-header { margin-bottom: 1rem; }
+  /* Phase-header is a full-bleed banded section (its own background, edge to
+     edge) that bleeds past .content's padding via negative margins, then
+     re-applies its own padding. */
+  .phase-header {
+    background: var(--phase-band-bg);
+    margin: -1.25rem -1.25rem 1rem;
+    padding: 16px 24px;
+  }
   .phase-head-row { display: flex; align-items: flex-start; gap: 12px; }
   .phase-head-main { flex: 1; min-width: 0; }
-  .phase-completed { flex-shrink: 0; text-align: center; }
-  .pc-count { font-size: 15px; font-weight: 700; color: var(--accent); font-variant-numeric: tabular-nums; white-space: nowrap; }
-  .pc-label { font-size: 10px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); margin-top: 1px; }
   .phase-folder {
     flex-shrink: 0; background: none; border: none; color: var(--muted);
     cursor: pointer; padding: 2px; display: flex; align-items: center; margin-top: 2px;
   }
   .phase-folder:active { color: var(--text); }
+
+  /* Steps row — label + "X / Y completed", sits above the step list */
+  .steps-row { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 12px; }
+  .steps-row-label { font-size: 11px; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; color: var(--muted); }
+  .steps-row-count { display: flex; align-items: baseline; gap: 4px; }
+  .src-num { font-size: 12px; font-weight: 700; color: var(--accent); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .src-lbl { font-size: 10px; font-weight: 600; letter-spacing: 0.03em; color: var(--muted); }
 
   /* ── Pattern-notes bottom sheet ── */
   .sheet-scrim {
@@ -281,8 +293,11 @@
   .note-def { font-size: 15px; line-height: 1.5; color: var(--text); }
   .phase-name { font-family: Georgia, serif; font-size: 1.35rem; font-weight: 400; color: var(--text); margin-bottom: 2px; }
   .phase-desc { font-size: 12px; color: var(--muted); }
-  /* Collapse animation (idle auto-hide) only applies on the chart page */
+  /* Collapse animation (idle auto-hide) only applies on the chart page.
+     The banded background is a non-chart-page treatment only — inside the
+     chart's fixed overlay the card background already applies. */
   body.chart-page .phase-header {
+    background: transparent;
     margin: 0; padding: 8px 14px 7px;
     max-height: 300px; overflow: hidden;
     transition: max-height 0.35s ease, opacity 0.25s ease, margin 0.35s ease;
@@ -1437,7 +1452,6 @@ function renderPhase() {
         </div>
         <div class="phase-desc">${p.desc}</div>
       </div>
-      ${showCompleted ? `<div class="phase-completed"><div class="pc-count">${doneSteps} / ${totalSteps}</div><div class="pc-label">completed</div></div>` : ''}
       ${(activePattern() && activePattern().notes) ? `<button class="phase-folder" onclick="openNotes()" aria-label="Pattern notes" title="Pattern notes">${NOTES_SVG}</button>` : ''}
     </div>
     <div class="phase-scroll collapsed" id="phase-tabs"></div>
@@ -1450,6 +1464,7 @@ function renderPhase() {
     html += buildChartTracker(confirmStep, phaseHeaderHtml);
   } else {
     html += phaseHeaderHtml;
+    if (showCompleted) html += `<div class="steps-row"><span class="steps-row-label">Steps</span><span class="steps-row-count"><span class="src-num">${doneSteps} / ${totalSteps}</span><span class="src-lbl">completed</span></span></div>`;
     if (p.steps.length) html += '<div class="steps">' + p.steps.map(stepHtml).join('') + '</div>';
 
     html += '<div class="nav-btns">';
