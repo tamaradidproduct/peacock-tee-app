@@ -1327,7 +1327,6 @@ function changeChartRow(delta) {
   if (ccur) ccur.textContent = chartCurrentRow;
   const recap = document.getElementById('chart-recap');
   if (recap) recap.innerHTML = recapHtml(chartCurrentRow);
-  renderStats();
 
   // Smart scroll: keep active row centered once it reaches the viewport midpoint
   smartScrollChart(newEl, delta);
@@ -1336,7 +1335,6 @@ function changeChartRow(delta) {
 // ─────────────────────────────────────────────
 // RENDER
 // ─────────────────────────────────────────────
-function doneCount()      { return Object.values(state).filter(Boolean).length; }
 function phaseComplete(p) { return p.steps.every(s => state[s.id]); }
 
 function renderTabs() {
@@ -1506,13 +1504,6 @@ function closeNotes() {
   if (s) s.remove();
 }
 
-function renderStats() {
-  const done = doneCount();
-  const pct  = TOTAL_STEPS ? Math.round(done / TOTAL_STEPS * 100) : 0;
-  const p = document.getElementById('prog-pct');
-  if (p) p.textContent = pct + '%';
-}
-
 function escapeHtml(s) {
   return String(s).replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
 }
@@ -1534,7 +1525,6 @@ function renderProject() {
   renderHeader();
   renderPhase();
   renderTabs();
-  renderStats();
   renderGlobalRows();
 
   // NB: coerce to a real boolean — classList.toggle(cls, undefined) *flips*
@@ -1602,9 +1592,9 @@ function renderPicker() {
 }
 
 // Build the header for the current view. Only rebuilds when the view/project
-// actually changes — otherwise the dynamic bits (progress bar, row count) are
-// updated in place by renderStats()/renderGlobalRows(), so checking off a step
-// doesn't tear down and relayout the header (which caused the content to jump).
+// actually changes — otherwise the dynamic bits (row count) are updated in
+// place by renderGlobalRows(), so checking off a step doesn't tear down and
+// relayout the header (which caused the content to jump).
 function renderHeader() {
   const h = document.getElementById('header');
   if (!h) return;
@@ -1627,9 +1617,9 @@ function renderHeader() {
         <div class="proj-title" onclick="renameProject('${proj ? proj.id : ''}')" title="Tap to rename">${proj ? escapeHtml(proj.name) : ''}</div>
         ${pat && pat.badge ? `<div class="proj-sub">${pat.badge}</div>` : ''}
       </div>
-      <div class="proj-progress" title="Overall pattern progress">
-        <div class="pp-pct" id="prog-pct">0%</div>
-        <div class="pp-label">complete</div>
+      <div class="proj-progress" title="Total rows completed">
+        <div class="pp-pct" id="prog-rows">0</div>
+        <div class="pp-label">rows</div>
       </div>
     </div>`;
 }
@@ -1741,7 +1731,7 @@ function changeCount(id, delta) {
 // Global, project-wide row tally — read-only display that auto-advances with
 // the section row counters and the chart row.
 function renderGlobalRows() {
-  const el = document.getElementById('grow-val');
+  const el = document.getElementById('prog-rows');
   if (el) el.textContent = globalRows;
 }
 
