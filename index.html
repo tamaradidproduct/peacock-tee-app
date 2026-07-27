@@ -164,12 +164,14 @@
 
   /* ── Pattern-title header (back to library) ── */
   .pattern-h1 { display: flex; align-items: center; gap: 6px; }
+  /* Back + phase-switch share one circular icon-button style so the two
+     chevrons read as the same control. */
   .lib-back {
     display: inline-flex; align-items: center; justify-content: center;
-    width: 26px; height: 26px; margin-left: -4px; border-radius: 50%;
+    width: 24px; height: 24px; border-radius: 50%;
     border: 1px solid var(--border); background: var(--card);
-    color: var(--text); font-size: 20px; line-height: 1; cursor: pointer;
-    flex-shrink: 0; padding: 0 2px 2px 0;
+    color: var(--muted); cursor: pointer; flex-shrink: 0; padding: 0;
+    transition: background 0.15s;
   }
   .lib-back:active { background: var(--bg); }
 
@@ -1379,6 +1381,12 @@ const CHECK_SVG = `<svg width="12" height="10" viewBox="0 0 11 9" fill="none">
         <path d="M1 4L4 7.5L10 1" stroke="white" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
       </svg>`;
 
+// Back chevron — same stroke weight/shape as the phase-switch chevron so the
+// two circular icon buttons look like one family.
+const BACK_CHEVRON_SVG = `<svg class="chevron" width="6" height="10" viewBox="0 0 6 10" fill="none" aria-hidden="true">
+        <path d="M5 1L1 5L5 9" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>`;
+
 // Open-book icon (pattern notes / stitch help)
 const NOTES_SVG = `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
         <path d="M12 6.5C10.6 5.2 8.7 4.5 6.5 4.5c-1.2 0-2.4.2-3.5.7v13c1.1-.5 2.3-.7 3.5-.7 2.2 0 4.1.7 5.5 2 1.4-1.3 3.3-2 5.5-2 1.2 0 2.4.2 3.5.7v-13c-1.1-.5-2.3-.7-3.5-.7-2.2 0-4.1.7-5.5 2z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
@@ -1622,13 +1630,13 @@ function renderHeader() {
     return;
   }
   if (view === 'picker') {
-    h.innerHTML = `<div class="header-top"><h1 class="pattern-h1"><button class="lib-back" onclick="goHome()" aria-label="Back">‹</button>New project</h1></div>`;
+    h.innerHTML = `<div class="header-top"><h1 class="pattern-h1"><button class="lib-back" onclick="goHome()" aria-label="Back">${BACK_CHEVRON_SVG}</button>New project</h1></div>`;
     return;
   }
   const proj = activeProject();
   const pat = activePattern();
   h.innerHTML = `<div class="header-top proj-head">
-      <button class="lib-back" onclick="goHome()" aria-label="Back to projects">‹</button>
+      <button class="lib-back" onclick="goHome()" aria-label="Back to projects">${BACK_CHEVRON_SVG}</button>
       <div class="proj-heading">
         <div class="proj-title" onclick="renameProject('${proj ? proj.id : ''}')" title="Tap to rename">${proj ? escapeHtml(proj.name) : ''}</div>
         ${pat && pat.badge ? `<div class="proj-sub">${pat.badge}</div>` : ''}
