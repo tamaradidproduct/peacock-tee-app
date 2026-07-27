@@ -296,7 +296,9 @@
     flex-shrink: 0; min-width: 64px;
     font-size: 14px; font-weight: 700; color: var(--accent);
     font-variant-numeric: tabular-nums;
+    display: flex; align-items: center; gap: 8px;
   }
+  .note-sym { width: 16px; height: 16px; display: flex; align-items: center; justify-content: center; color: var(--text); flex-shrink: 0; }
   .note-def { font-size: 15px; line-height: 1.5; color: var(--text); }
   .phase-name { font-family: Georgia, serif; font-size: 1.35rem; font-weight: 400; color: var(--text); margin-bottom: 2px; }
   .phase-desc { font-size: 12px; color: var(--muted); }
@@ -880,11 +882,11 @@ const PATTERNS = [
   { id:'peacock-tee', name:'Peacock Tee', badge:'Size S · 97 cm', desc:'Top-down raglan · yoke chart', phases: PHASES, chart: CHART_B,
     notes: [
       { term:'Knit', def:'K — plain knit stitch.' },
-      { term:'Purl', def:'P — purl stitch.' },
-      { term:'Yarn over', def:'YO — wrap the yarn to create a new stitch and an eyelet.' },
-      { term:'k2tog', def:'Knit two stitches together (right-leaning decrease).' },
-      { term:'SKPO', def:'Slip, knit, pass over (left-leaning decrease).' },
-      { term:'M1', def:'Make one — pick up the strand between stitches front-to-back and knit through the back loop.' },
+      { term:'Purl', def:'P — purl stitch.', symbol:'<svg width="8" height="8" viewBox="0 0 8 8" style="display:block"><circle cx="4" cy="4" r="3.5" fill="currentColor"/></svg>' },
+      { term:'Yarn over', def:'YO — wrap the yarn to create a new stitch and an eyelet.', symbol:'<svg width="9" height="9" viewBox="0 0 9 9" style="display:block"><circle cx="4.5" cy="4.5" r="3.5" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>' },
+      { term:'k2tog', def:'Knit two stitches together (right-leaning decrease).', symbol:'<svg width="9" height="9" viewBox="0 0 9 9" style="display:block"><polygon points="0,9 9,9 9,0" fill="currentColor"/></svg>' },
+      { term:'SKPO', def:'Slip, knit, pass over (left-leaning decrease).', symbol:'<svg width="9" height="9" viewBox="0 0 9 9" style="display:block"><polygon points="0,0 0,9 9,9" fill="currentColor"/></svg>' },
+      { term:'M1', def:'Make one — pick up the strand between stitches front-to-back and knit through the back loop.', symbol:'<svg width="10" height="10" viewBox="0 0 10 10" style="display:block"><circle cx="5" cy="5" r="4" fill="none" stroke="currentColor" stroke-width="1.5"/><line x1="1.5" y1="5" x2="8.5" y2="5" stroke="currentColor" stroke-width="1.5"/></svg>' },
       { term:'No stitch', def:'E — an empty cell used to center the pattern; the stitch does not exist.' },
       { term:'GSR', def:'German short row — after turning, slip the first st yarn-in-front, move yarn to back and tighten until 2 legs show. On the next row, knit those 2 legs together as one stitch.' },
       { term:'m1-R / m1-L', def:'Right- and left-leaning make-one increases, worked before and after the marker stitch.' },
@@ -1492,7 +1494,7 @@ function openNotes() {
   scrim.id = 'notes-scrim';
   scrim.onclick = e => { if (e.target === scrim) closeNotes(); };
   const rows = pat.notes.map(n => `<div class="note-row">
-      ${n.term ? `<span class="note-term">${escapeHtml(n.term)}</span>` : ''}
+      <span class="note-term">${n.symbol ? `<span class="note-sym">${n.symbol}</span>` : ''}${n.term ? escapeHtml(n.term) : ''}</span>
       <span class="note-def">${escapeHtml(n.def)}</span>
     </div>`).join('');
   scrim.innerHTML = `<div class="sheet" role="dialog" aria-label="Pattern notes">
