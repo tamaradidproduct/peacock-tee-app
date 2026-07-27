@@ -318,13 +318,6 @@
     transition: max-height 0.35s ease, opacity 0.25s ease;
   }
 
-  .note {
-    background: #ede9f5; border-left: 3px solid #6b5b8a;
-    border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
-    padding: 10px 14px; font-size: 13px; color: #6b5b8a;
-    line-height: 1.55; margin-bottom: 1rem;
-  }
-
   /* ── Steps ── */
   .steps { display: flex; flex-direction: column; gap: 0; }
   .step {
@@ -760,7 +753,6 @@ let PHASES = [
   },
   {
     id:'gsr', name:'Short rows', desc:'German short rows · neckline shaping',
-    note:'GSR: after turning, slip first st yarn-in-front, move yarn to back and tighten until 2 legs show. On the next row, knit those 2 legs together as one stitch.',
     steps:[
       {id:'g1', text:'Row 1 (RS): K 27 sts. Turn.'},
       {id:'g2', text:'Row 2 (WS): GSR, p 53 sts. Turn.'},
@@ -1478,7 +1470,6 @@ function renderPhase() {
     html += buildChartTracker(confirmStep, phaseHeaderHtml);
   } else {
     html += phaseHeaderHtml;
-    if (p.note) html += `<div class="note">${p.note.replace(/\n/g, '<br>')}</div>`;
     if (p.steps.length) html += '<div class="steps">' + p.steps.map(stepHtml).join('') + '</div>';
 
     html += '<div class="nav-btns">';
