@@ -1792,7 +1792,7 @@ function updateHeaderScrollState(scrollPos = null) {
 window.addEventListener('scroll', () => {
   if (!scrollTicking) {
     scrollTicking = true;
-    requestAnimationFrame(updateHeaderScrollState);
+    requestAnimationFrame(() => updateHeaderScrollState());
   }
 }, { passive: true });
 window.addEventListener('resize', updatePhaseHeaderOffset);
