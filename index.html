@@ -119,8 +119,15 @@
     letter-spacing: -0.01em; cursor: pointer;
   }
   .proj-sub { font-size: 12px; color: var(--muted); margin-top: 2px; }
-  .proj-head .grow { flex-shrink: 0; margin-top: 1px; }
-  .proj-head .hdr-more { flex-shrink: 0; }
+  /* Overall project progress, right side of the header (mirrors the
+     per-section "X / Y completed" treatment). */
+  .proj-progress { flex-shrink: 0; text-align: center; }
+  .pp-pct { font-size: 15px; font-weight: 700; color: var(--accent); font-variant-numeric: tabular-nums; }
+  .pp-label { font-size: 10px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); margin-top: 1px; }
+  .proj-track {
+    height: 4px; background: var(--border); border-radius: 2px;
+    overflow: hidden; margin-top: 10px;
+  }
   .header h1 {
     font-family: Georgia, 'Times New Roman', serif;
     font-size: 1.25rem; font-weight: 400; color: var(--text); letter-spacing: -0.01em;
@@ -130,37 +137,7 @@
     font-size: 11px; font-weight: 500; color: var(--accent);
     background: var(--accent-light); padding: 3px 8px; border-radius: 20px;
   }
-  .progress-wrap { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
-  .progress-wrap .hdr-more { margin-left: auto; }
-  .progress-track { flex: 1; height: 4px; background: var(--border); border-radius: 2px; overflow: hidden; }
-
-  /* Minimized header: progress bar tucks away until the chevron is tapped */
-  .hdr-more {
-    display: flex; align-items: center; justify-content: center;
-    width: 30px; height: 26px; border: none; background: none;
-    color: var(--muted); cursor: pointer; flex-shrink: 0; padding: 0;
-  }
-  .hdr-more .chevron { transition: transform 0.25s ease; }
-  .header.meta-open .hdr-more .chevron { transform: rotate(180deg); }
-  .hdr-meta {
-    max-height: 0; overflow: hidden; opacity: 0;
-    transition: max-height 0.3s ease, opacity 0.25s ease, margin-top 0.3s ease;
-  }
-  .hdr-meta .progress-track { width: 100%; }
-  .header.meta-open .hdr-meta { max-height: 16px; opacity: 1; margin-top: 9px; }
   .progress-fill { height: 100%; background: var(--accent); border-radius: 2px; transition: width 0.4s ease; }
-
-  /* Global row tally (project-wide, in the header) */
-  .grow { display: flex; align-items: center; gap: 5px; flex-shrink: 0; }
-  .grow-lbl {
-    font-size: 10px; font-weight: 600; letter-spacing: 0.04em;
-    text-transform: uppercase; color: var(--muted); margin-right: 1px;
-  }
-  .grow-val {
-    min-width: 24px; text-align: center;
-    font-size: 15px; font-weight: 700; color: var(--text);
-    font-variant-numeric: tabular-nums;
-  }
 
   /* ── Pattern-title header (back to library) ── */
   .pattern-h1 { display: flex; align-items: center; gap: 6px; }
@@ -1524,6 +1501,8 @@ function renderStats() {
   const pct  = TOTAL_STEPS ? Math.round(done / TOTAL_STEPS * 100) : 0;
   const el = document.getElementById('prog-fill');
   if (el) el.style.width = pct + '%';
+  const p = document.getElementById('prog-pct');
+  if (p) p.textContent = pct + '%';
 }
 
 function escapeHtml(s) {
@@ -1624,7 +1603,6 @@ function renderHeader() {
   const key = view === 'project' ? 'proj:' + activeProjectId : view;
   if (h.dataset.key === key) return;
   h.dataset.key = key;
-  h.classList.remove('meta-open');   // each view/project starts minimized
   if (view === 'home') {
     h.innerHTML = `<div class="header-top lib-brand">${LOGO_SVG}<h1><span>Pattern</span> library</h1></div>`;
     return;
@@ -1641,13 +1619,12 @@ function renderHeader() {
         <div class="proj-title" onclick="renameProject('${proj ? proj.id : ''}')" title="Tap to rename">${proj ? escapeHtml(proj.name) : ''}</div>
         ${pat && pat.badge ? `<div class="proj-sub">${pat.badge}</div>` : ''}
       </div>
-    </div>`;
-}
-function toggleHeaderMeta() {
-  const h = document.getElementById('header');
-  if (!h) return;
-  h.classList.toggle('meta-open');
-  if (document.body.classList.contains('chart-page')) setTimeout(syncChartLayout, 320);
+      <div class="proj-progress" title="Overall pattern progress">
+        <div class="pp-pct" id="prog-pct">0%</div>
+        <div class="pp-label">complete</div>
+      </div>
+    </div>
+    <div class="proj-track"><div class="progress-fill" id="prog-fill"></div></div>`;
 }
 // Force the header to rebuild on next render (e.g. after a project rename,
 // where the view/project key is unchanged but the title text changed).
