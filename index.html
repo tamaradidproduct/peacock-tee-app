@@ -124,10 +124,6 @@
   .proj-progress { flex-shrink: 0; text-align: center; }
   .pp-pct { font-size: 15px; font-weight: 700; color: var(--accent); font-variant-numeric: tabular-nums; }
   .pp-label { font-size: 10px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); margin-top: 1px; }
-  .proj-track {
-    height: 4px; background: var(--border); border-radius: 2px;
-    overflow: hidden; margin-top: 10px;
-  }
   .header h1 {
     font-family: Georgia, 'Times New Roman', serif;
     font-size: 1.25rem; font-weight: 400; color: var(--text); letter-spacing: -0.01em;
@@ -137,7 +133,6 @@
     font-size: 11px; font-weight: 500; color: var(--accent);
     background: var(--accent-light); padding: 3px 8px; border-radius: 20px;
   }
-  .progress-fill { height: 100%; background: var(--accent); border-radius: 2px; transition: width 0.4s ease; }
 
   /* ── Pattern-title header (back to library) ── */
   .pattern-h1 { display: flex; align-items: center; gap: 6px; }
@@ -1499,8 +1494,6 @@ function closeNotes() {
 function renderStats() {
   const done = doneCount();
   const pct  = TOTAL_STEPS ? Math.round(done / TOTAL_STEPS * 100) : 0;
-  const el = document.getElementById('prog-fill');
-  if (el) el.style.width = pct + '%';
   const p = document.getElementById('prog-pct');
   if (p) p.textContent = pct + '%';
 }
@@ -1623,8 +1616,7 @@ function renderHeader() {
         <div class="pp-pct" id="prog-pct">0%</div>
         <div class="pp-label">complete</div>
       </div>
-    </div>
-    <div class="proj-track"><div class="progress-fill" id="prog-fill"></div></div>`;
+    </div>`;
 }
 // Force the header to rebuild on next render (e.g. after a project rename,
 // where the view/project key is unchanged but the title text changed).
