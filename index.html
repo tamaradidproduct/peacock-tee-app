@@ -992,7 +992,12 @@ function applyPattern(p) {
 function activateProject(projectId) {
   const proj = projects.find(p => p.id === projectId);
   if (!proj) return false;
-  const pat = patternById(proj.patternId) || PATTERNS[0];
+  // No fallback pattern on purpose. Opening a project under the *wrong*
+  // pattern is worse than not opening it: loadProjectState() would
+  // Object.assign this project's saved step-ids onto a different pattern's
+  // step set, silently corrupting both.
+  const pat = patternById(proj.patternId);
+  if (!pat) { console.warn('No pattern "' + proj.patternId + '" for project "' + proj.name + '"'); return false; }
   activeProjectId = proj.id;
   activePatternId = pat.id;
   applyPattern(pat);
@@ -1016,7 +1021,8 @@ function autoProjectName(pattern) {
 }
 
 function createProject(patternId) {
-  const pat = patternById(patternId) || PATTERNS[0];
+  const pat = patternById(patternId);
+  if (!pat) { console.warn('No pattern "' + patternId + '"'); return null; }
   const proj = { id: newId(), patternId: pat.id, name: autoProjectName(pat), created: Date.now() };
   projects.push(proj);
   saveProjects();
@@ -1770,7 +1776,7 @@ function startNewProject() {
 
 function choosePattern(patternId) {
   const proj = createProject(patternId);
-  openProject(proj.id);
+  if (proj) openProject(proj.id);
 }
 
 // Header/content/dock are plain flex items on the chart page (see
