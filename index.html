@@ -1629,6 +1629,13 @@ function closeFinishedScreen() {
   if (s) s.remove();
 }
 
+// The project name is the only user-supplied string in the app, so it's the
+// only thing that needs escaping — every site that renders it does.
+// Pattern text (step text, bullets, phase names, notes, badges) is authored
+// here in this file and injected raw on purpose. If patterns ever become
+// user-authored or fetched from a server, every one of those sites needs
+// escapeHtml() too, and the `${…id}` interpolations inside onclick attributes
+// need to become delegated data-* handlers.
 function escapeHtml(s) {
   return String(s).replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
 }
