@@ -321,6 +321,60 @@
   }
   .note-sym { width: 16px; height: 16px; display: flex; align-items: center; justify-content: center; color: var(--text); flex-shrink: 0; }
   .note-def { font-size: 15px; line-height: 1.5; color: var(--text); }
+
+  /* ── Pattern-finished celebration screen ── */
+  .finished-scrim {
+    position: fixed; inset: 0; z-index: 400;
+    background: rgba(42, 37, 32, 0);
+    display: flex; align-items: center; justify-content: center;
+    padding: 24px;
+    transition: background 0.3s ease;
+    overflow: hidden;
+  }
+  .finished-scrim.open { background: rgba(42, 37, 32, 0.55); }
+  .finished-card {
+    position: relative; z-index: 1;
+    width: 100%; max-width: 340px;
+    background: var(--card); border-radius: 20px;
+    padding: 36px 28px 28px;
+    text-align: center;
+    box-shadow: 0 12px 40px rgba(0,0,0,0.22);
+    transform: scale(0.85) translateY(10px); opacity: 0;
+    transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.3s ease;
+  }
+  .finished-scrim.open .finished-card { transform: scale(1) translateY(0); opacity: 1; }
+  .finished-icon {
+    font-size: 48px; line-height: 1; display: inline-block;
+    animation: finished-pop 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) 0.15s both;
+  }
+  @keyframes finished-pop {
+    0% { transform: scale(0) rotate(-15deg); opacity: 0; }
+    60% { transform: scale(1.15) rotate(6deg); opacity: 1; }
+    100% { transform: scale(1) rotate(0); }
+  }
+  .finished-title { font-family: Georgia, serif; font-size: 1.35rem; color: var(--text); margin: 14px 0 6px; }
+  .finished-sub { font-size: 13px; color: var(--muted); line-height: 1.5; margin-bottom: 24px; }
+  .finished-actions { display: flex; flex-direction: column; gap: 10px; }
+  .finished-btn {
+    padding: 13px; border-radius: var(--radius); font-size: 14px; font-weight: 500;
+    cursor: pointer; border: 1px solid var(--border); background: var(--card); color: var(--text);
+    transition: background 0.15s;
+  }
+  .finished-btn.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .finished-btn:active { background: var(--bg); }
+  .finished-btn.primary:active { background: #3c5949; }
+
+  /* Confetti falls across the whole scrim, behind the card */
+  .confetti-piece {
+    position: absolute; top: -20px; z-index: 0;
+    border-radius: 2px; opacity: 0.95;
+    animation-name: confetti-fall;
+    animation-timing-function: cubic-bezier(0.4, 0, 0.6, 1);
+    animation-fill-mode: forwards;
+  }
+  @keyframes confetti-fall {
+    to { transform: translateY(115vh) rotate(600deg); opacity: 0; }
+  }
   .phase-name { font-family: Georgia, serif; font-size: 1.35rem; font-weight: 400; color: var(--text); margin-bottom: 2px; }
   .phase-desc { font-size: 12px; color: var(--muted); }
   body.chart-page .phase-header {
@@ -525,8 +579,15 @@
        be reset or the buttons overflow the dock and get clipped. */
     margin: 0;
     padding: 8px 12px 10px;
-    max-height: 120px; overflow: hidden;
-    transition: max-height 0.35s ease, opacity 0.25s ease, padding 0.35s ease, border-color 0.35s ease;
+    /* Capped to the real measured height (--chart-navbtns-h, set in JS),
+       same reasoning as the chart-page header: an arbitrary max-height far
+       bigger than the content makes the collapse/reveal snap instead of
+       sliding smoothly. */
+    max-height: var(--chart-navbtns-h, 120px); overflow: hidden;
+    transition: max-height 0.25s ease, opacity 0.25s ease, padding 0.25s ease, border-color 0.25s ease;
+  }
+  .chart-dock .nav-btns.nav-btns-hidden {
+    max-height: 0; padding-top: 0; padding-bottom: 0; opacity: 0; border-color: transparent;
   }
   .chart-dock .nav-btn { padding: 11px; }
   .leg { display: flex; align-items: center; gap: 4px; }
@@ -1248,10 +1309,10 @@ function renderChartDock() {
     <button class="cc-ctrl cc-plus" onclick="changeChartRow(1)">+</button>
   </div>`;
 
-  html += '<div class="nav-btns">';
+  html += '<div class="nav-btns" id="chart-nav-btns">';
   if (cur > 0) html += `<button class="nav-btn" onclick="go(${cur - 1})">← Back</button>`;
   if (cur < PHASES.length - 1) html += `<button class="nav-btn primary" onclick="go(${cur + 1})">Next →</button>`;
-  else html += `<button class="nav-btn primary" onclick="alert('Your Peacock Tee is finished! 🎉')">Finished! 🎉</button>`;
+  else html += `<button class="nav-btn primary" onclick="showFinishedScreen()">Finished! 🎉</button>`;
   html += '</div>';
 
   dock.innerHTML = html;
@@ -1480,7 +1541,7 @@ function renderPhase() {
     html += '<div class="nav-btns">';
     if (cur > 0) html += `<button class="nav-btn" onclick="go(${cur - 1})">← Back</button>`;
     if (cur < PHASES.length - 1) html += `<button class="nav-btn primary" onclick="go(${cur + 1})">Next →</button>`;
-    else html += `<button class="nav-btn primary" onclick="alert('Your ${(activeProject()&&activeProject().name||'project').replace(/'/g,'')} is finished! 🎉')">Finished! 🎉</button>`;
+    else html += `<button class="nav-btn primary" onclick="showFinishedScreen()">Finished! 🎉</button>`;
     html += '</div>';
   }
 
@@ -1531,12 +1592,58 @@ function closeNotes() {
   if (s) s.remove();
 }
 
+// Confetti fill/size are randomized per open so the celebration doesn't
+// look identical every time.
+const CONFETTI_COLORS = ['#4a6b5a', '#2563eb', '#e0a640', '#c96a4f', '#8a8178'];
+function confettiHtml(count) {
+  let html = '';
+  for (let i = 0; i < count; i++) {
+    const left = Math.random() * 100;
+    const color = CONFETTI_COLORS[i % CONFETTI_COLORS.length];
+    const w = 6 + Math.round(Math.random() * 4);
+    const h = Math.round(w * 1.7);
+    const dur = (2.2 + Math.random() * 1.4).toFixed(2);
+    const delay = (Math.random() * 0.5).toFixed(2);
+    html += `<div class="confetti-piece" style="left:${left}%; width:${w}px; height:${h}px; background:${color}; animation-duration:${dur}s; animation-delay:${delay}s;"></div>`;
+  }
+  return html;
+}
+
+// "Finished!" button on the last phase → full-screen celebration with a
+// confetti burst, distinct from the plain step-completion checkmarks.
+function showFinishedScreen() {
+  closeFinishedScreen(); // never stack two
+  const proj = activeProject();
+  const pat = activePattern();
+  const scrim = document.createElement('div');
+  scrim.className = 'finished-scrim';
+  scrim.id = 'finished-scrim';
+  scrim.onclick = e => { if (e.target === scrim) closeFinishedScreen(); };
+  scrim.innerHTML = `${confettiHtml(28)}
+    <div class="finished-card" role="dialog" aria-label="Pattern finished">
+      <span class="finished-icon">🎉</span>
+      <div class="finished-title">${proj ? escapeHtml(proj.name) : 'Your project'} is finished!</div>
+      <div class="finished-sub">Every step of ${pat ? escapeHtml(pat.name) : 'the pattern'} is complete — nice work.</div>
+      <div class="finished-actions">
+        <button class="finished-btn primary" onclick="closeFinishedScreen(); goHome();">Back to library</button>
+        <button class="finished-btn" onclick="closeFinishedScreen()">Keep reviewing</button>
+      </div>
+    </div>`;
+  document.body.appendChild(scrim);
+  requestAnimationFrame(() => scrim.classList.add('open'));
+}
+function closeFinishedScreen() {
+  const s = document.getElementById('finished-scrim');
+  if (s) s.remove();
+}
+
 function escapeHtml(s) {
   return String(s).replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
 }
 
 function render() {
   closeNotes(); // navigation/re-render dismisses the notes sheet
+  closeFinishedScreen();
   if (view === 'home')   { renderHome();   requestAnimationFrame(updatePhaseHeaderOffset); return; }
   if (view === 'picker') { renderPicker(); requestAnimationFrame(updatePhaseHeaderOffset); return; }
   renderProject();
@@ -1808,22 +1915,40 @@ function updatePhaseHeaderOffset() {
   // scrollHeight reports the header's natural content height regardless of
   // any max-height clipping, so this stays accurate whichever state it's in.
   document.documentElement.style.setProperty('--chart-header-h', h.scrollHeight + 'px');
+  const nav = document.getElementById('chart-nav-btns');
+  if (nav) {
+    // Unlike the header, .nav-btns is a flex row: if scrollHeight is read
+    // while max-height is still constraining the box, the flex buttons
+    // themselves get compressed to fit (align-items: stretch + min-height:
+    // auto) instead of overflowing — so the "natural" reading comes out
+    // artificially small, poisoning this var on the very next transition.
+    // Bypassing the CSS var with an inline override for the read avoids it.
+    const prevMaxH = nav.style.maxHeight;
+    nav.style.maxHeight = 'none';
+    const navH = nav.scrollHeight;
+    nav.style.maxHeight = prevMaxH;
+    document.documentElement.style.setProperty('--chart-navbtns-h', navH + 'px');
+  }
 }
 
 function updateHeaderScrollState(scrollPos = null) {
   scrollTicking = false;
   const h = document.getElementById('header');
   if (!h) return;
+  const nav = document.getElementById('chart-nav-btns');
   const y = scrollPos !== null ? scrollPos : window.scrollY;
   const delta = y - scrollAnchor;
   if (y <= SCROLL_HIDE_MIN_Y) {
     h.classList.remove('header-hidden');
+    if (nav) nav.classList.remove('nav-btns-hidden');
     scrollAnchor = y;
   } else if (delta > SCROLL_HIDE_THRESHOLD) {
     h.classList.add('header-hidden');
+    if (nav) nav.classList.add('nav-btns-hidden');
     scrollAnchor = y;
   } else if (delta < -SCROLL_HIDE_THRESHOLD) {
     h.classList.remove('header-hidden');
+    if (nav) nav.classList.remove('nav-btns-hidden');
     scrollAnchor = y;
   }
   lastScrollY = y;
