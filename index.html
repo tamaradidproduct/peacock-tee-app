@@ -48,10 +48,18 @@
   /* ── Chart page: lock viewport, only .chart-vp scrolls ──
      Plain flexbox column: header / content / dock stack top-to-bottom as real
      flex items. The content area is flex:1 and fills whatever space the header
-     and dock leave behind — no fixed positioning, no JS-measured offsets. When
-     the header collapses (max-height → 0) the content area grows to fill the
-     freed space automatically, because that's just how flex works. */
-  body.chart-page { height: 100svh; overflow: hidden; padding-bottom: 0; display: flex; flex-direction: column; }
+     and dock leave behind — no JS-measured offsets. When the header collapses
+     (max-height → 0) the content area grows to fill the freed space
+     automatically, because that's just how flex works.
+     The outer box is position:fixed + inset:0 rather than height:100svh —
+     vh/dvh/svh units all mis-report inside Chrome Custom Tabs and some mobile
+     browsers (see git history), but a fixed element's containing block is the
+     real visual viewport, so this reliably fills the screen everywhere. */
+  body.chart-page {
+    position: fixed; inset: 0;
+    overflow: hidden; padding-bottom: 0;
+    display: flex; flex-direction: column;
+  }
   body.chart-page .header {
     position: static; flex: 0 0 auto;
     padding: 0.55rem 1.25rem 0.5rem;
