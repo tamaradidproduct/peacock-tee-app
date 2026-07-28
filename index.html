@@ -765,19 +765,6 @@ let CHART_B = [
   ['P','P','P','P','P','P','M1','K','K','K','K','K','K','K','K','K','M1','P','P','P','P','P','P'],
 ];
 
-// Load extracted chart data from localStorage if available (set by extractor panel)
-(function() {
-  const override = localStorage.getItem('chartB_override');
-  if (override) {
-    try {
-      const parsed = JSON.parse(override);
-      if (Array.isArray(parsed) && parsed.length > 0) {
-        CHART_B.splice(0, CHART_B.length, ...parsed);
-      }
-    } catch(e) { /* ignore bad data */ }
-  }
-})();
-
 let CHART_TOTAL = CHART_B.length; // 44 (active pattern's chart)
 
 // ─────────────────────────────────────────────
@@ -1068,7 +1055,6 @@ function save() {
     localStorage.setItem(pkey('cur'), cur);
     localStorage.setItem(pkey('chartRow'), chartCurrentRow);
     localStorage.setItem(pkey('grows'), globalRows);
-    localStorage.setItem('pt3_lastProject', activeProjectId);
   } catch(e) {}
 }
 
@@ -1764,7 +1750,6 @@ function resetHeaderKey() { const h = document.getElementById('header'); if (h) 
 function openProject(id) {
   if (!activateProject(id)) return;
   view = 'project';
-  try { localStorage.setItem('pt3_lastProject', id); } catch(e) {}
   window.scrollTo(0, 0);
   render();
 }
@@ -1968,37 +1953,6 @@ loadGlobal();
 loadProjects();
 view = 'home';
 render();
-
-// Show extractor if ?extract in URL
-if (location.search.includes('extract')) showExtractor();
 </script>
-
-<!-- ── FIGMA EXTRACTOR PANEL (hidden by default) ── -->
-<div id="ext-panel" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:9999;overflow-y:auto;padding:24px;">
-  <div style="background:#fff;border-radius:12px;max-width:680px;margin:0 auto;padding:24px;font-family:monospace;font-size:13px;">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
-      <strong style="font-size:15px;font-family:sans-serif;">Figma Chart Extractor</strong>
-      <button onclick="document.getElementById('ext-panel').style.display='none'" style="border:none;background:none;font-size:20px;cursor:pointer;">✕</button>
-    </div>
-    <p style="font-family:sans-serif;font-size:13px;color:#555;margin-bottom:12px;">
-      Reads Chart B directly from the Figma REST API using raw node JSON — no code generation. Each cell's <code>componentId</code> is mapped to a stitch token.
-    </p>
-    <label style="font-family:sans-serif;font-size:12px;font-weight:600;display:block;margin-bottom:4px;">Figma Personal Access Token</label>
-    <input id="ext-token" type="password" placeholder="figd_…"
-      style="width:100%;padding:8px;border:1px solid #ccc;border-radius:6px;font-size:13px;margin-bottom:10px;box-sizing:border-box;">
-    <button onclick="extractChartFromFigma(document.getElementById('ext-token').value.trim())"
-      style="background:#2563eb;color:#fff;border:none;border-radius:6px;padding:10px 20px;font-size:13px;cursor:pointer;margin-bottom:16px;">
-      Extract Chart Data
-    </button>
-    <pre id="ext-log" style="background:#f5f5f5;border-radius:6px;padding:12px;max-height:240px;overflow-y:auto;white-space:pre-wrap;font-size:11px;margin-bottom:12px;"></pre>
-    <button id="ext-apply-btn" onclick="location.reload()" style="display:none;background:#16a34a;color:#fff;border:none;border-radius:6px;padding:10px 20px;font-size:13px;cursor:pointer;margin-bottom:12px;">
-      ✓ Reload App with New Chart Data
-    </button>
-    <label style="font-family:sans-serif;font-size:12px;font-weight:600;display:block;margin-bottom:4px;">CHART_B Output (backup)</label>
-    <textarea id="ext-output" rows="8"
-      style="width:100%;padding:8px;border:1px solid #ccc;border-radius:6px;font-size:11px;box-sizing:border-box;"
-      placeholder="Extracted array will appear here…"></textarea>
-  </div>
-</div>
 </body>
 </html>
