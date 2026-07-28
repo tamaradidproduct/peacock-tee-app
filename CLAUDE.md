@@ -17,11 +17,13 @@ peacock-tee-deploy/
 
 ## Deployment
 - Hosted on Netlify (project `peacock-tee-small`), connected to GitHub repo **tamaradidproduct/peacock-tee-app**.
-- **Netlify Git auto-builds are blocked** by the free-plan build-minute limit, so pushes to `main` do NOT auto-deploy. Ship with a direct CLI deploy (no build minutes used):
-  ```bash
-  netlify deploy --prod --dir=.
-  ```
-- **Only deploy/push when the user explicitly asks** — make and verify changes locally, commit locally, and hold pushes/deploys until requested.
+- **Netlify auto-deploys on every push to `main`** (`netlify.toml` says so at the top). Confirmed working: 20+ successful git-triggered production builds since mid-June, current billing period usage ~2 build-minutes. **Merging a PR into `main` is the deploy action** — nothing further to run.
+  - A prior note here claimed auto-builds were blocked by the free-plan build-minute limit. That traced to one incident on 2026-06-16 (`account credit usage exceeded`, plus the repo being private and pre-verification at the time) — it hasn't recurred since the repo went public, and isn't a live constraint. Don't reintroduce the "always CLI deploy" workaround without checking current usage first (`netlify api getAccountBuildStatus --data '{"account_id":"<id>"}'`).
+  - Manual fallback, for anything that can't wait on a PR:
+    ```bash
+    netlify deploy --prod --dir=.
+    ```
+- **Only merge/deploy when the user explicitly asks** — make and verify changes locally, commit, push, and open a PR; hold the merge (and any manual deploy) until requested.
 - Service worker cache is named `peacock-tee-vN` — bump N in `sw.js` when deploying a change so clients refresh. HTML is served **network-first** (see SW section), so page updates land on next load without a manual cache bump; bump N mainly for the cached static assets.
 
 ## How the app works

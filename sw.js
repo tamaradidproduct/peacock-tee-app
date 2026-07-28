@@ -1,5 +1,11 @@
-const CACHE = 'peacock-tee-v14';
-const ASSETS = ['/', '/index.html', '/manifest.json', '/icon-192.png', '/icon-512.png', '/apple-touch-icon.png'];
+const CACHE = 'peacock-tee-v15';
+// Precached so a fresh install works offline. /js/** is also network-first at
+// runtime (see fetch below), so a missing entry here degrades to a cache miss
+// on first offline load, never to stale code.
+const ASSETS = ['/', '/index.html', '/manifest.json', '/icon-192.png', '/icon-512.png', '/apple-touch-icon.png',
+  '/js/core/state.js',
+  '/js/patterns/peacock-tee.js',
+  '/js/patterns/tatted-triangle.js'];
 
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(ASSETS)));
