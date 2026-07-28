@@ -10,6 +10,25 @@
 // function bodies resolve their identifiers when called, not when defined.
 // ─────────────────────────────────────────────
 
+// The pattern registry. Each js/patterns/*.js file pushes its own entry, so
+// the load order of those files is the order they appear in the picker.
+const PATTERNS = [];
+
+// Active-pattern pointers, reassigned by applyPattern() to whichever registry
+// entry the open project uses. This is what keeps every renderer
+// pattern-agnostic.
+//
+// NB these are live references INTO the registry, not copies: after
+// applyPattern(p), PHASES === p.phases and CHART_B === p.chart. Mutating
+// PHASES[i] therefore edits the pattern itself, for every project using it.
+// Nothing does that today (the one offender, a chart-override that spliced
+// CHART_B in place, is gone), and the rule is that nothing may start. When
+// patterns become per-project snapshots this needs to become a real copy or a
+// deep freeze.
+let PHASES = [];
+let CHART_B = [];
+let CHART_TOTAL = 0;
+
 // Progress + view state for the currently open project.
 let TOTAL_STEPS = 0;
 let cur = 0;
