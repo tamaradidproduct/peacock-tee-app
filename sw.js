@@ -1,4 +1,4 @@
-const CACHE = 'peacock-tee-v12';
+const CACHE = 'peacock-tee-v14';
 const ASSETS = ['/', '/index.html', '/manifest.json', '/icon-192.png', '/icon-512.png', '/apple-touch-icon.png'];
 
 self.addEventListener('install', e => {
@@ -15,12 +15,27 @@ self.addEventListener('activate', e => {
 
 self.addEventListener('fetch', e => {
   const req = e.request;
+  const url = new URL(req.url);
+
+  // Don't touch non-GET. Auth token exchange, upserts and RPC are all POST,
+  // and caches.match() can never satisfy them anyway.
+  if (req.method !== 'GET') return;
+
+  // Don't touch cross-origin. Serving a cached API or auth response is far
+  // worse than serving none — a cache-first /rest/v1 read would hand back
+  // stale data forever, and a cached /auth/v1/user would pin the wrong
+  // account. Let the browser handle these with no SW involvement at all.
+  if (url.origin !== self.location.origin) return;
+
   const isHTML = req.mode === 'navigate' ||
     (req.headers.get('accept') || '').includes('text/html');
 
-  if (isHTML) {
-    // Network-first for the page itself, so deployed updates land immediately;
-    // fall back to cache only when offline.
+  // Network-first for the page AND app code, so deployed updates land
+  // immediately; fall back to cache only when offline. Doing this for /js/
+  // is what removes the need for ?v= cache-busting query strings — those
+  // would have to stay in lockstep with the cache name by hand, and drift
+  // would ship a half-updated app.
+  if (isHTML || url.pathname.startsWith('/js/')) {
     e.respondWith(
       fetch(req)
         .then(res => {
@@ -28,12 +43,16 @@ self.addEventListener('fetch', e => {
           caches.open(CACHE).then(c => c.put(req, copy));
           return res;
         })
-        .catch(() => caches.match(req).then(c => c || caches.match('/index.html')))
+        // ignoreSearch so a navigation carrying a query (e.g. an OAuth
+        // ?code= return) still matches the cached page rather than
+        // accidentally falling through to the /index.html branch.
+        .catch(() => caches.match(req, { ignoreSearch: isHTML })
+                       .then(c => c || (isHTML ? caches.match('/index.html') : undefined)))
     );
     return;
   }
 
-  // Cache-first for static assets (icons, manifest, etc.)
+  // Cache-first for genuinely static same-origin assets (icons, manifest).
   e.respondWith(caches.match(req).then(cached => cached || fetch(req)));
 });
 

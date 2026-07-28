@@ -43,24 +43,40 @@
     background: var(--bg);
     color: var(--text);
     min-height: 100vh;
-    padding-bottom: 82px;
   }
 
-  /* ── Chart page: lock viewport, only .chart-vp scrolls ── */
-  /* Pin the header (top) and dock (bottom) with fixed positioning — the one
-     layout that reliably stays within the visible area on mobile (incl. Chrome
-     Custom Tabs). The scrolling middle is positioned between them via JS, so we
-     don't depend on any viewport-height unit (vh/dvh/svh all misbehave here). */
-  body.chart-page { height: 100svh; overflow: hidden; padding-bottom: 0; }
+  /* ── Chart page: lock viewport, only .chart-vp scrolls ──
+     Plain flexbox column: header / content / dock stack top-to-bottom as real
+     flex items. The content area is flex:1 and fills whatever space the header
+     and dock leave behind — no JS-measured offsets. When the header collapses
+     (max-height → 0) the content area grows to fill the freed space
+     automatically, because that's just how flex works.
+     The outer box is position:fixed + inset:0 rather than height:100svh —
+     vh/dvh/svh units all mis-report inside Chrome Custom Tabs and some mobile
+     browsers (see git history), but a fixed element's containing block is the
+     real visual viewport, so this reliably fills the screen everywhere. */
+  body.chart-page {
+    position: fixed; inset: 0;
+    overflow: hidden; padding-bottom: 0;
+    display: flex; flex-direction: column;
+  }
   body.chart-page .header {
-    position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+    position: static; flex: 0 0 auto;
     padding: 0.55rem 1.25rem 0.5rem;
-    /* collapse animation only matters on the chart page (idle auto-hide) */
-    max-height: 300px; overflow: hidden;
-    transition: max-height 0.35s ease, opacity 0.25s ease, padding 0.35s ease;
+    /* Capped to the header's real measured height (--chart-header-h, set in
+       JS) rather than an arbitrary overshoot — with max-height far bigger
+       than the content, the box sits at its natural height for most of the
+       transition and only visibly moves in the last sliver of it, reading
+       as a snap instead of a slide. */
+    max-height: var(--chart-header-h, 300px); overflow: hidden;
+    transition: max-height 0.25s ease, opacity 0.25s ease, padding 0.25s ease, border-color 0.25s ease;
+  }
+  body.chart-page .header.header-hidden {
+    max-height: 0; padding-top: 0; padding-bottom: 0; border-color: transparent;
+    transform: none; /* chart page collapses via max-height, not translateY */
   }
   body.chart-page .content {
-    position: fixed; left: 0; right: 0; top: 0; bottom: 0; /* top/bottom set by JS */
+    flex: 1; min-height: 0;
     overflow: hidden; padding: 0;
     display: flex; flex-direction: column;
   }
@@ -85,19 +101,23 @@
   .chart-overlay-top { border-bottom: 1px solid var(--border); }
   .chart-overlay-bottom { border-top: 1px solid var(--border); }
 
-  /* Floating recenter button — anchored to the bottom-right of the chart area */
-  .chart-recenter {
+  /* Floating zoom + recenter buttons — stacked bottom-right of the chart area */
+  .chart-fabs {
     display: none;
     position: absolute; right: 14px; bottom: 14px; z-index: 15;
-    width: 44px; height: 44px; border-radius: 50%;
+    flex-direction: column; gap: 8px; align-items: center;
+  }
+  body.chart-page .chart-fabs { display: flex; }
+  .chart-fab-btn {
+    width: 40px; height: 40px; border-radius: 50%;
     border: 1px solid var(--border); background: var(--card);
-    color: var(--accent); cursor: pointer;
-    align-items: center; justify-content: center;
+    color: var(--text); cursor: pointer; font-size: 13px; font-weight: 600;
+    display: flex; align-items: center; justify-content: center;
     box-shadow: 0 2px 8px rgba(0,0,0,0.12);
     transition: background 0.15s, transform 0.15s;
   }
-  body.chart-page .chart-recenter { display: flex; }
-  .chart-recenter:active { background: var(--bg); transform: scale(0.92); }
+  .chart-fab-btn:active { background: var(--bg); transform: scale(0.92); }
+  .chart-fab-btn.chart-recenter { width: 44px; height: 44px; color: var(--accent); }
 
   /* ── Header ── */
   .header {
@@ -105,7 +125,11 @@
     border-bottom: 1px solid var(--border);
     padding: 1rem 1.25rem 0.875rem;
     position: sticky; top: 0; z-index: 100;
+    transition: transform 0.25s ease;
   }
+  /* Scroll-direction auto-hide (non-chart pages only — the chart page has
+     its own idle-based auto-hide and doesn't use window scroll). */
+  .header.header-hidden { transform: translateY(-100%); }
   .header-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; margin-bottom: 0.75rem; }
   .header-top.lib-brand { justify-content: flex-start; gap: 10px; align-items: center; margin-bottom: 0; }
   .header-top .pattern-h1 { flex: 1; min-width: 0; }
@@ -149,7 +173,7 @@
   .lib-back:active { background: var(--bg); }
 
   /* ── Library / pattern list ── */
-  .lib-list { display: flex; flex-direction: column; gap: 12px; }
+  .lib-list { display: flex; flex-direction: column; gap: 12px; margin-bottom: 58px; }
   .lib-card {
     display: block; width: 100%; text-align: left;
     background: var(--card); border: 1px solid var(--border);
@@ -231,6 +255,10 @@
     background: var(--phase-band-bg);
     margin: -1.25rem -1.25rem 1rem;
     padding: 16px 24px;
+    position: sticky;
+    top: var(--header-h, 0px);
+    z-index: 90;
+    transition: top 0.25s ease;
   }
   .phase-head-row { display: flex; align-items: flex-start; gap: 12px; }
   .phase-head-main { flex: 1; min-width: 0; }
@@ -289,22 +317,73 @@
     flex-shrink: 0; min-width: 64px;
     font-size: 14px; font-weight: 700; color: var(--accent);
     font-variant-numeric: tabular-nums;
+    display: flex; align-items: center; gap: 8px;
   }
+  .note-sym { width: 16px; height: 16px; display: flex; align-items: center; justify-content: center; color: var(--text); flex-shrink: 0; }
   .note-def { font-size: 15px; line-height: 1.5; color: var(--text); }
+
+  /* ── Pattern-finished celebration screen ── */
+  .finished-scrim {
+    position: fixed; inset: 0; z-index: 400;
+    background: rgba(42, 37, 32, 0);
+    display: flex; align-items: center; justify-content: center;
+    padding: 24px;
+    transition: background 0.3s ease;
+    overflow: hidden;
+  }
+  .finished-scrim.open { background: rgba(42, 37, 32, 0.55); }
+  .finished-card {
+    position: relative; z-index: 1;
+    width: 100%; max-width: 340px;
+    background: var(--card); border-radius: 20px;
+    padding: 36px 28px 28px;
+    text-align: center;
+    box-shadow: 0 12px 40px rgba(0,0,0,0.22);
+    transform: scale(0.85) translateY(10px); opacity: 0;
+    transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.3s ease;
+  }
+  .finished-scrim.open .finished-card { transform: scale(1) translateY(0); opacity: 1; }
+  .finished-icon {
+    font-size: 48px; line-height: 1; display: inline-block;
+    animation: finished-pop 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) 0.15s both;
+  }
+  @keyframes finished-pop {
+    0% { transform: scale(0) rotate(-15deg); opacity: 0; }
+    60% { transform: scale(1.15) rotate(6deg); opacity: 1; }
+    100% { transform: scale(1) rotate(0); }
+  }
+  .finished-title { font-family: Georgia, serif; font-size: 1.35rem; color: var(--text); margin: 14px 0 6px; }
+  .finished-sub { font-size: 13px; color: var(--muted); line-height: 1.5; margin-bottom: 24px; }
+  .finished-actions { display: flex; flex-direction: column; gap: 10px; }
+  .finished-btn {
+    padding: 13px; border-radius: var(--radius); font-size: 14px; font-weight: 500;
+    cursor: pointer; border: 1px solid var(--border); background: var(--card); color: var(--text);
+    transition: background 0.15s;
+  }
+  .finished-btn.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .finished-btn:active { background: var(--bg); }
+  .finished-btn.primary:active { background: #3c5949; }
+
+  /* Confetti falls across the whole scrim, behind the card */
+  .confetti-piece {
+    position: absolute; top: -20px; z-index: 0;
+    border-radius: 2px; opacity: 0.95;
+    animation-name: confetti-fall;
+    animation-timing-function: cubic-bezier(0.4, 0, 0.6, 1);
+    animation-fill-mode: forwards;
+  }
+  @keyframes confetti-fall {
+    to { transform: translateY(115vh) rotate(600deg); opacity: 0; }
+  }
   .phase-name { font-family: Georgia, serif; font-size: 1.35rem; font-weight: 400; color: var(--text); margin-bottom: 2px; }
   .phase-desc { font-size: 12px; color: var(--muted); }
-  /* Collapse animation (idle auto-hide) only applies on the chart page.
-     The banded background is a non-chart-page treatment only — inside the
-     chart's fixed overlay the card background already applies. */
   body.chart-page .phase-header {
-    background: transparent;
+    background: var(--phase-band-bg);
     margin: 0; padding: 8px 14px 7px;
-    max-height: 300px; overflow: hidden;
-    transition: max-height 0.35s ease, opacity 0.25s ease, margin 0.35s ease;
+    position: static;
   }
   body.chart-page .phase-desc {
-    max-height: 40px; overflow: hidden;
-    transition: max-height 0.35s ease, opacity 0.25s ease;
+    overflow: hidden;
   }
 
   /* ── Steps ── */
@@ -385,10 +464,10 @@
 
   /* ── Nav buttons — fixed at bottom ── */
   .nav-btns {
-    position: fixed; bottom: 0; left: 0; right: 0;
     display: flex; gap: 10px;
-    background: var(--bg); padding: 12px 1.25rem 16px;
-    border-top: 1px solid var(--border); z-index: 50;
+    margin: 0 -1.25rem 0;
+    padding: 16px 1.25rem calc(16px + env(safe-area-inset-bottom));
+    border-top: 1px solid var(--border);
   }
   .nav-btn {
     flex: 1; padding: 14px; border-radius: var(--radius);
@@ -460,40 +539,23 @@
   .crow-num-active { color: var(--ch-blue) !important; font-weight: 700; }
   .crow-num-done { color: var(--accent) !important; }
 
-  /* Chart zoom bar */
-  .chart-ctrl-bar {
-    display: flex; align-items: center; justify-content: space-between;
-    padding: 5px 12px; border-top: 1px solid var(--border);
-    font-size: 11px; color: var(--muted);
-    max-height: 200px; overflow: hidden;
-    transition: max-height 0.35s ease, opacity 0.25s ease, padding 0.35s ease, border-color 0.35s ease;
-  }
-  .zoom-btns { display: flex; gap: 5px; }
-  .zoom-btn {
-    height: 28px; padding: 0 10px; border-radius: 6px;
-    border: 1px solid var(--border); background: var(--bg);
-    font-size: 12px; font-weight: 500; color: var(--text); cursor: pointer;
-    display: flex; align-items: center;
-  }
-  .zoom-btn:active { background: var(--border); }
-
   /* Chart legend */
   .chart-legend {
-    border-top: 1px solid var(--border);
-    padding: 6px 12px 7px;
-    display: flex; flex-wrap: wrap; gap: 8px 14px;
-    font-size: 10px; color: var(--muted);
-    max-height: 200px; overflow: hidden;
+    display: none;
     transition: max-height 0.35s ease, opacity 0.25s ease, padding 0.35s ease, border-color 0.35s ease;
   }
 
-  /* Chart confirm step (merged "Count to confirm 253 sts") */
+  /* Chart confirm step — nested inside .chart-recap (same "what do I do
+     now" panel as the row instructions), shown only on the last row. The
+     negative margins cancel .chart-recap's padding so this still bleeds
+     edge-to-edge like the rest of the dock's rows. */
   .chart-confirm-step {
     display: flex; align-items: center; gap: 12px;
-    padding: 10px 14px; border-top: 1px solid var(--border);
+    margin: 8px -16px -9px;
+    padding: 10px 16px;
+    border-top: 1px solid var(--border);
     cursor: pointer; -webkit-user-select: none; user-select: none;
-    transition: background 0.15s, max-height 0.35s ease, opacity 0.25s ease, padding 0.35s ease, border-color 0.35s ease;
-    max-height: 200px; overflow: hidden;
+    transition: background 0.15s;
   }
   .chart-confirm-step:active { background: var(--bg); }
   .chart-confirm-step.done { background: var(--done-bg); }
@@ -501,31 +563,31 @@
   .chart-confirm-step.done .step-circle svg { display: block; }
   .chart-confirm-step.done .step-text { color: var(--done-text); text-decoration: line-through; text-decoration-color: var(--accent-mid); }
 
-  /* ── Idle: collapse panels, leaving the minimized top bar (phase name +
-        chevron) as the affordance to bring everything back ── */
-  body.chart-idle .header,
-  body.chart-idle .phase-desc,
-  body.chart-idle .chart-ctrl-bar,
-  body.chart-idle .chart-confirm-step,
-  body.chart-idle .chart-dock .nav-btns {
-    max-height: 0; opacity: 0;
-    padding-top: 0; padding-bottom: 0; margin-top: 0; margin-bottom: 0;
-    border-color: transparent;
-  }
 
-  /* ── Chart dock — row counter + nav, fixed at bottom of chart screen ── */
+  /* ── Chart dock — row counter + nav, bottom flex item of the chart screen ── */
   .chart-dock { display: none; }
   body.chart-page .chart-dock {
-    position: fixed; bottom: 0; left: 0; right: 0; z-index: 100;
+    flex: 0 0 auto;
     display: flex; flex-direction: column;
     background: var(--bg); border-top: 1px solid var(--border);
     padding-bottom: env(safe-area-inset-bottom);
   }
   .chart-dock .nav-btns {
     position: static;
+    /* Base .nav-btns bleeds edge-to-edge via a negative margin that cancels
+       .content's 1.25rem padding — there's no such padding here, so it must
+       be reset or the buttons overflow the dock and get clipped. */
+    margin: 0;
     padding: 8px 12px 10px;
-    max-height: 120px; overflow: hidden;
-    transition: max-height 0.35s ease, opacity 0.25s ease, padding 0.35s ease, border-color 0.35s ease;
+    /* Capped to the real measured height (--chart-navbtns-h, set in JS),
+       same reasoning as the chart-page header: an arbitrary max-height far
+       bigger than the content makes the collapse/reveal snap instead of
+       sliding smoothly. */
+    max-height: var(--chart-navbtns-h, 120px); overflow: hidden;
+    transition: max-height 0.25s ease, opacity 0.25s ease, padding 0.25s ease, border-color 0.25s ease;
+  }
+  .chart-dock .nav-btns.nav-btns-hidden {
+    max-height: 0; padding-top: 0; padding-bottom: 0; opacity: 0; border-color: transparent;
   }
   .chart-dock .nav-btn { padding: 11px; }
   .leg { display: flex; align-items: center; gap: 4px; }
@@ -572,13 +634,19 @@
   .cc-cur-val { font-size: 28px; font-weight: 700; color: var(--ch-blue); line-height: 1.1; }
   .cc-total-lbl { font-size: 11px; color: var(--muted); }
 
-  /* ── Update banner ── */
-  #update-banner {
+  /* ── Banners ── stacked in a flex column so two can show at once without
+     overlapping, whatever height the text wraps to. */
+  #banner-stack {
     position: fixed; bottom: 82px; left: 1.25rem; right: 1.25rem;
+    z-index: 200; display: flex; flex-direction: column; gap: 10px;
+    pointer-events: none;
+  }
+  #banner-stack > * { pointer-events: auto; }
+  #update-banner {
     background: var(--text); color: #fff;
     border-radius: var(--radius); padding: 13px 16px;
     display: flex; align-items: center; justify-content: space-between;
-    z-index: 200; font-size: 14px; gap: 12px;
+    font-size: 14px; gap: 12px;
     box-shadow: 0 4px 16px rgba(0,0,0,0.18);
     animation: slide-up 0.25s ease;
   }
@@ -587,6 +655,16 @@
     background: #fff; color: var(--text); border: none;
     border-radius: 8px; padding: 7px 14px;
     font-size: 13px; font-weight: 600; cursor: pointer; white-space: nowrap; flex-shrink: 0;
+  }
+
+  /* ── Save-failure banner ── persistent and buttonless: the only fix is
+     freeing space, which the user has to do themselves. */
+  #save-error {
+    background: #8a3b32; color: #fff;
+    border-radius: var(--radius); padding: 13px 16px;
+    font-size: 13.5px; line-height: 1.45;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.18);
+    animation: slide-up 0.25s ease;
   }
 </style>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Ccircle cx='18' cy='22' r='13' fill='%23e8f0ec' stroke='%234a6b5a' stroke-width='2'/%3E%3Cg stroke='%234a6b5a' stroke-width='1.6' fill='none' stroke-linecap='round'%3E%3Cpath d='M7.5 17.5 C12 12, 24 12, 29.5 19.5'/%3E%3Cpath d='M5.5 24 C12 18.5, 25 20, 30 25.5'/%3E%3Cpath d='M8.5 30 C13 26, 23 27, 28 30.5'/%3E%3Cpath d='M14.5 10 C11 17, 12 28, 16.5 34'/%3E%3Cpath d='M22.5 10.5 C19.5 17, 20.5 28, 24 33'/%3E%3C/g%3E%3Cline x1='24' y1='13' x2='35.5' y2='4.5' stroke='%234a6b5a' stroke-width='2.4' stroke-linecap='round'/%3E%3Ccircle cx='35.5' cy='4.5' r='2' fill='%234a6b5a'/%3E%3C/svg%3E">
@@ -702,19 +780,6 @@ let CHART_B = [
   // Row 44
   ['P','P','P','P','P','P','M1','K','K','K','K','K','K','K','K','K','M1','P','P','P','P','P','P'],
 ];
-
-// Load extracted chart data from localStorage if available (set by extractor panel)
-(function() {
-  const override = localStorage.getItem('chartB_override');
-  if (override) {
-    try {
-      const parsed = JSON.parse(override);
-      if (Array.isArray(parsed) && parsed.length > 0) {
-        CHART_B.splice(0, CHART_B.length, ...parsed);
-      }
-    } catch(e) { /* ignore bad data */ }
-  }
-})();
 
 let CHART_TOTAL = CHART_B.length; // 44 (active pattern's chart)
 
@@ -891,12 +956,16 @@ const TATTING_PHASES = [
 const PATTERNS = [
   { id:'peacock-tee', name:'Peacock Tee', badge:'Size S · 97 cm', desc:'Top-down raglan · yoke chart', phases: PHASES, chart: CHART_B,
     notes: [
+      { term:'Knit', def:'K — plain knit stitch.' },
+      { term:'Purl', def:'P — purl stitch.', symbol:'<svg width="8" height="8" viewBox="0 0 8 8" style="display:block"><circle cx="4" cy="4" r="3.5" fill="currentColor"/></svg>' },
+      { term:'Yarn over', def:'YO — wrap the yarn to create a new stitch and an eyelet.', symbol:'<svg width="9" height="9" viewBox="0 0 9 9" style="display:block"><circle cx="4.5" cy="4.5" r="3.5" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>' },
+      { term:'k2tog', def:'Knit two stitches together (right-leaning decrease).', symbol:'<svg width="9" height="9" viewBox="0 0 9 9" style="display:block"><polygon points="0,9 9,9 9,0" fill="currentColor"/></svg>' },
+      { term:'SKPO', def:'Slip, knit, pass over (left-leaning decrease).', symbol:'<svg width="9" height="9" viewBox="0 0 9 9" style="display:block"><polygon points="0,0 0,9 9,9" fill="currentColor"/></svg>' },
+      { term:'M1', def:'Make one — pick up the strand between stitches front-to-back and knit through the back loop.', symbol:'<svg width="10" height="10" viewBox="0 0 10 10" style="display:block"><circle cx="5" cy="5" r="4" fill="none" stroke="currentColor" stroke-width="1.5"/><line x1="1.5" y1="5" x2="8.5" y2="5" stroke="currentColor" stroke-width="1.5"/></svg>' },
+      { term:'No stitch', def:'E — an empty cell used to center the pattern; the stitch does not exist.' },
       { term:'GSR', def:'German short row — after turning, slip the first st yarn-in-front, move yarn to back and tighten until 2 legs show. On the next row, knit those 2 legs together as one stitch.' },
-      { term:'M1', def:'Make one — pick up the strand between stitches front-to-back and knit through the back loop.' },
       { term:'m1-R / m1-L', def:'Right- and left-leaning make-one increases, worked before and after the marker stitch.' },
-      { term:'k2tog', def:'Knit two stitches together (right-leaning decrease).' },
-      { term:'SSK / SKPO', def:'Left-leaning decrease — slip, slip, knit the slipped stitches together (or slip 1, knit 1, pass over).' },
-      { term:'YO', def:'Yarn over — wrap the yarn to create a new stitch and an eyelet.' },
+      { term:'SSK', def:'Slip, slip, knit (left-leaning decrease).' },
       { term:'BOR', def:'Beginning of round (mid-back on this pattern).' },
     ] },
   { id:'tatted-triangle', name:'Tatted Half-Square Triangle', badge:'≈ 2⅜ in · size 40', desc:'Tatting · two interlocking triangles', phases: TATTING_PHASES,
@@ -939,7 +1008,12 @@ function applyPattern(p) {
 function activateProject(projectId) {
   const proj = projects.find(p => p.id === projectId);
   if (!proj) return false;
-  const pat = patternById(proj.patternId) || PATTERNS[0];
+  // No fallback pattern on purpose. Opening a project under the *wrong*
+  // pattern is worse than not opening it: loadProjectState() would
+  // Object.assign this project's saved step-ids onto a different pattern's
+  // step set, silently corrupting both.
+  const pat = patternById(proj.patternId);
+  if (!pat) { console.warn('No pattern "' + proj.patternId + '" for project "' + proj.name + '"'); return false; }
   activeProjectId = proj.id;
   activePatternId = pat.id;
   applyPattern(pat);
@@ -963,7 +1037,8 @@ function autoProjectName(pattern) {
 }
 
 function createProject(patternId) {
-  const pat = patternById(patternId) || PATTERNS[0];
+  const pat = patternById(patternId);
+  if (!pat) { console.warn('No pattern "' + patternId + '"'); return null; }
   const proj = { id: newId(), patternId: pat.id, name: autoProjectName(pat), created: Date.now() };
   projects.push(proj);
   saveProjects();
@@ -993,6 +1068,51 @@ function deleteProject(projectId) {
 // ── Per-project persistence (pt3_proj_<id>_*); cellSz is a global pref. ──
 function pkey(suffix) { return 'pt3_proj_' + activeProjectId + '_' + suffix; }
 
+// localStorage IS the progress. A swallowed write means the row the user
+// just counted is gone on reload, with nothing on screen to say so — so a
+// failed save has to be visible even though there's nothing we can do
+// about it automatically.
+let saveFailed = false;
+
+// Bottom-of-screen banner host. Created on demand, removed when it empties,
+// so it never sits in the DOM intercepting taps on the nav buttons below it.
+function bannerStack() {
+  let s = document.getElementById('banner-stack');
+  if (!s) { s = document.createElement('div'); s.id = 'banner-stack'; document.body.appendChild(s); }
+  return s;
+}
+
+function pruneBannerStack() {
+  const s = document.getElementById('banner-stack');
+  if (s && !s.children.length) s.remove();
+}
+
+function isQuotaError(e) {
+  return e && (e.name === 'QuotaExceededError' || e.name === 'NS_ERROR_DOM_QUOTA_REACHED' ||
+               e.code === 22 || e.code === 1014);
+}
+
+function showSaveError(e) {
+  console.error('save() failed — progress is not being written', e);
+  if (saveFailed) return;
+  saveFailed = true;
+  const b = document.createElement('div');
+  b.id = 'save-error';
+  b.textContent = isQuotaError(e)
+    ? 'Out of storage — progress isn’t being saved. Delete a finished project to free space.'
+    : 'Progress isn’t being saved on this device. Private browsing can cause this.';
+  // First in the stack, so the tappable update banner stays nearest the thumb.
+  bannerStack().prepend(b);
+}
+
+function clearSaveError() {
+  if (!saveFailed) return;
+  saveFailed = false;
+  const b = document.getElementById('save-error');
+  if (b) b.remove();
+  pruneBannerStack();
+}
+
 function save() {
   try { localStorage.setItem('pt3_cellSz', cellSz); } catch(e) {}
   if (!activeProjectId) return;
@@ -1002,8 +1122,10 @@ function save() {
     localStorage.setItem(pkey('cur'), cur);
     localStorage.setItem(pkey('chartRow'), chartCurrentRow);
     localStorage.setItem(pkey('grows'), globalRows);
-    localStorage.setItem('pt3_lastProject', activeProjectId);
-  } catch(e) {}
+    clearSaveError();
+  } catch(e) {
+    showSaveError(e);
+  }
 }
 
 function loadProjectState() {
@@ -1087,26 +1209,23 @@ function stitchCell(type) {
   return `<div class="cc">${sym ? `<span class="cc-sym">${sym}</span>` : ''}</div>`;
 }
 
-function buildChartTracker(confirmStep, phaseHeaderHtml) {
+function buildChartTracker(phaseHeaderHtml) {
   let html = '<div class="chart-tracker">';
 
-  // Top panel: phase header (minimized grab bar when idle) + hint/zoom bar
+  // Top panel: just the phase header (minimized grab bar when idle) — the
+  // general instructions now live in the row recap dock, and the zoom
+  // controls sit next to the recenter FAB (see chart-stage below).
   html += `<div class="chart-overlay-top" id="chart-overlay-top">`;
   html += phaseHeaderHtml;
-  html += `<div class="chart-ctrl-bar">
-    <span>Work Chart B in the round · read right → left, bottom to top</span>
-    <div class="zoom-btns">
-      <button class="zoom-btn" onclick="resizeChart(-2)">A−</button>
-      <button class="zoom-btn" onclick="resizeChart(2)">A+</button>
-    </div>
-  </div>`;
   html += '</div>';
 
-  // Stage: the scrolling chart viewport + floating recenter button
+  // Stage: the scrolling chart viewport + floating recenter/zoom buttons
   html += '<div class="chart-stage">';
   html += '<div class="chart-vp" id="chart-vp"><div class="chart-inner" id="chart-inner">';
 
-  // Render rows top-to-bottom visually (row 44 at top, row 1 at bottom)
+  // Render rows top-to-bottom visually (row 44 at top, row 1 at bottom).
+  // The last-worked row (44) carries the post-chart confirm step directly
+  // underneath it, rather than as a separate block below the whole chart.
   for (let r = CHART_TOTAL; r >= 1; r--) {
     const rowData = CHART_B[r - 1];
     const isActive = (r === chartCurrentRow);
@@ -1125,16 +1244,20 @@ function buildChartTracker(confirmStep, phaseHeaderHtml) {
   }
 
   html += '</div></div>'; // chart-inner + chart-vp
-  html += `<button class="chart-recenter" onclick="centerOnCurrentRow()" aria-label="Center on current row">
-    <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
-      <circle cx="9" cy="9" r="3" fill="currentColor"/>
-      <circle cx="9" cy="9" r="6.5" stroke="currentColor" stroke-width="1.5"/>
-      <path d="M9 0.5V3M9 15v2.5M17.5 9H15M3 9H0.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-    </svg>
-  </button>`;
+  html += `<div class="chart-fabs">
+    <button class="chart-fab-btn" onclick="resizeChart(2)" aria-label="Zoom in">A+</button>
+    <button class="chart-fab-btn" onclick="resizeChart(-2)" aria-label="Zoom out">A−</button>
+    <button class="chart-fab-btn chart-recenter" onclick="centerOnCurrentRow()" aria-label="Center on current row">
+      <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+        <circle cx="9" cy="9" r="3" fill="currentColor"/>
+        <circle cx="9" cy="9" r="6.5" stroke="currentColor" stroke-width="1.5"/>
+        <path d="M9 0.5V3M9 15v2.5M17.5 9H15M3 9H0.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+      </svg>
+    </button>
+  </div>`;
   html += '</div>'; // chart-stage
 
-  // Bottom panel: legend + merged "Count to confirm 253 sts" step
+  // Bottom panel: legend (kept for the pattern-notes sheet, hidden here)
   html += `<div class="chart-overlay-bottom" id="chart-overlay-bottom">`;
   html += `<div class="chart-legend">
     <div class="leg"><div class="leg-cc"></div>knit</div>
@@ -1145,13 +1268,6 @@ function buildChartTracker(confirmStep, phaseHeaderHtml) {
     <div class="leg"><div class="leg-cc" style="color:var(--ch-def-symbol)">${SYMS.M1}</div>M1</div>
     <div class="leg"><div class="leg-cc leg-cc-e"></div>no stitch</div>
   </div>`;
-  if (confirmStep) {
-    const done = state[confirmStep.id];
-    html += `<div class="chart-confirm-step ${done ? 'done' : ''}" onclick="toggleStep('${confirmStep.id}')">
-      <div class="step-circle">${CHECK_SVG}</div>
-      <div class="step-text">${confirmStep.text}</div>
-    </div>`;
-  }
   html += '</div>';
 
   html += '</div>'; // chart-tracker
@@ -1218,8 +1334,22 @@ function rowRecap(row) {
 }
 
 function recapHtml(row) {
-  return `<div class="recap-head">Repeat in the round · Row ${row}</div>
-    <div class="recap-body">${rowRecap(row)}</div>`;
+  let html = `<div class="recap-head">Work Chart B in the round · read right → left, bottom to top</div>
+    <div class="recap-body"><strong>Row ${row}:</strong> ${rowRecap(row)}</div>`;
+
+  // Post-chart confirm step — the last step of the chart phase, surfaced
+  // alongside the row instructions (same "what do I do now" panel) rather
+  // than as a separate block further down. Only relevant once the last row
+  // is reached — it's the count you take after finishing the chart.
+  const confirmStep = PHASES[cur].steps.find(s => s.postChart);
+  if (confirmStep && row === CHART_TOTAL) {
+    const done = state[confirmStep.id];
+    html += `<div class="chart-confirm-step ${done ? 'done' : ''}" onclick="toggleStep('${confirmStep.id}')">
+      <div class="step-circle">${CHECK_SVG}</div>
+      <div class="step-text">${confirmStep.text}</div>
+    </div>`;
+  }
+  return html;
 }
 
 function renderChartDock() {
@@ -1235,10 +1365,10 @@ function renderChartDock() {
     <button class="cc-ctrl cc-plus" onclick="changeChartRow(1)">+</button>
   </div>`;
 
-  html += '<div class="nav-btns">';
+  html += '<div class="nav-btns" id="chart-nav-btns">';
   if (cur > 0) html += `<button class="nav-btn" onclick="go(${cur - 1})">← Back</button>`;
   if (cur < PHASES.length - 1) html += `<button class="nav-btn primary" onclick="go(${cur + 1})">Next →</button>`;
-  else html += `<button class="nav-btn primary" onclick="alert('Your Peacock Tee is finished! 🎉')">Finished! 🎉</button>`;
+  else html += `<button class="nav-btn primary" onclick="showFinishedScreen()">Finished! 🎉</button>`;
   html += '</div>';
 
   dock.innerHTML = html;
@@ -1327,7 +1457,6 @@ function changeChartRow(delta) {
   if (ccur) ccur.textContent = chartCurrentRow;
   const recap = document.getElementById('chart-recap');
   if (recap) recap.innerHTML = recapHtml(chartCurrentRow);
-  renderStats();
 
   // Smart scroll: keep active row centered once it reaches the viewport midpoint
   smartScrollChart(newEl, delta);
@@ -1336,7 +1465,6 @@ function changeChartRow(delta) {
 // ─────────────────────────────────────────────
 // RENDER
 // ─────────────────────────────────────────────
-function doneCount()      { return Object.values(state).filter(Boolean).length; }
 function phaseComplete(p) { return p.steps.every(s => state[s.id]); }
 
 function renderTabs() {
@@ -1460,8 +1588,7 @@ function renderPhase() {
   let html = '';
 
   if (p.hasChart) {
-    const confirmStep = p.steps.find(s => s.postChart);
-    html += buildChartTracker(confirmStep, phaseHeaderHtml);
+    html += buildChartTracker(phaseHeaderHtml);
   } else {
     html += phaseHeaderHtml;
     if (showCompleted) html += `<div class="steps-row"><span class="steps-row-label">Steps</span><span class="steps-row-count"><span class="src-num">${doneSteps} / ${totalSteps}</span><span class="src-lbl">completed</span></span></div>`;
@@ -1470,11 +1597,26 @@ function renderPhase() {
     html += '<div class="nav-btns">';
     if (cur > 0) html += `<button class="nav-btn" onclick="go(${cur - 1})">← Back</button>`;
     if (cur < PHASES.length - 1) html += `<button class="nav-btn primary" onclick="go(${cur + 1})">Next →</button>`;
-    else html += `<button class="nav-btn primary" onclick="alert('Your ${(activeProject()&&activeProject().name||'project').replace(/'/g,'')} is finished! 🎉')">Finished! 🎉</button>`;
+    else html += `<button class="nav-btn primary" onclick="showFinishedScreen()">Finished! 🎉</button>`;
     html += '</div>';
   }
 
   document.getElementById('phase-content').innerHTML = html;
+
+  // On chart pages, apply header scroll animation to the chart viewport scroll
+  if (p.hasChart) {
+    requestAnimationFrame(() => {
+      const chartVp = document.getElementById('chart-vp');
+      if (chartVp) {
+        chartVp.addEventListener('scroll', () => {
+          if (!scrollTicking) {
+            scrollTicking = true;
+            requestAnimationFrame(() => updateHeaderScrollState(chartVp.scrollTop));
+          }
+        }, { passive: true });
+      }
+    });
+  }
 }
 
 // Notes icon → bottom sheet with the pattern's stitch help / abbreviations.
@@ -1487,7 +1629,7 @@ function openNotes() {
   scrim.id = 'notes-scrim';
   scrim.onclick = e => { if (e.target === scrim) closeNotes(); };
   const rows = pat.notes.map(n => `<div class="note-row">
-      ${n.term ? `<span class="note-term">${escapeHtml(n.term)}</span>` : ''}
+      <span class="note-term">${n.symbol ? `<span class="note-sym">${n.symbol}</span>` : ''}${n.term ? escapeHtml(n.term) : ''}</span>
       <span class="note-def">${escapeHtml(n.def)}</span>
     </div>`).join('');
   scrim.innerHTML = `<div class="sheet" role="dialog" aria-label="Pattern notes">
@@ -1506,27 +1648,76 @@ function closeNotes() {
   if (s) s.remove();
 }
 
-function renderStats() {
-  const done = doneCount();
-  const pct  = TOTAL_STEPS ? Math.round(done / TOTAL_STEPS * 100) : 0;
-  const p = document.getElementById('prog-pct');
-  if (p) p.textContent = pct + '%';
+// Confetti fill/size are randomized per open so the celebration doesn't
+// look identical every time.
+const CONFETTI_COLORS = ['#4a6b5a', '#2563eb', '#e0a640', '#c96a4f', '#8a8178'];
+function confettiHtml(count) {
+  let html = '';
+  for (let i = 0; i < count; i++) {
+    const left = Math.random() * 100;
+    const color = CONFETTI_COLORS[i % CONFETTI_COLORS.length];
+    const w = 6 + Math.round(Math.random() * 4);
+    const h = Math.round(w * 1.7);
+    const dur = (2.2 + Math.random() * 1.4).toFixed(2);
+    const delay = (Math.random() * 0.5).toFixed(2);
+    html += `<div class="confetti-piece" style="left:${left}%; width:${w}px; height:${h}px; background:${color}; animation-duration:${dur}s; animation-delay:${delay}s;"></div>`;
+  }
+  return html;
 }
 
+// "Finished!" button on the last phase → full-screen celebration with a
+// confetti burst, distinct from the plain step-completion checkmarks.
+function showFinishedScreen() {
+  closeFinishedScreen(); // never stack two
+  const proj = activeProject();
+  const pat = activePattern();
+  const scrim = document.createElement('div');
+  scrim.className = 'finished-scrim';
+  scrim.id = 'finished-scrim';
+  scrim.onclick = e => { if (e.target === scrim) closeFinishedScreen(); };
+  scrim.innerHTML = `${confettiHtml(28)}
+    <div class="finished-card" role="dialog" aria-label="Pattern finished">
+      <span class="finished-icon">🎉</span>
+      <div class="finished-title">${proj ? escapeHtml(proj.name) : 'Your project'} is finished!</div>
+      <div class="finished-sub">Every step of ${pat ? escapeHtml(pat.name) : 'the pattern'} is complete — nice work.</div>
+      <div class="finished-actions">
+        <button class="finished-btn primary" onclick="closeFinishedScreen(); goHome();">Back to library</button>
+        <button class="finished-btn" onclick="closeFinishedScreen()">Keep reviewing</button>
+      </div>
+    </div>`;
+  document.body.appendChild(scrim);
+  requestAnimationFrame(() => scrim.classList.add('open'));
+}
+function closeFinishedScreen() {
+  const s = document.getElementById('finished-scrim');
+  if (s) s.remove();
+}
+
+// The project name is the only user-supplied string in the app, so it's the
+// only thing that needs escaping — every site that renders it does.
+// Pattern text (step text, bullets, phase names, notes, badges) is authored
+// here in this file and injected raw on purpose. If patterns ever become
+// user-authored or fetched from a server, every one of those sites needs
+// escapeHtml() too, and the `${…id}` interpolations inside onclick attributes
+// need to become delegated data-* handlers.
 function escapeHtml(s) {
   return String(s).replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
 }
 
 function render() {
   closeNotes(); // navigation/re-render dismisses the notes sheet
-  if (view === 'home')   { renderHome();   return; }
-  if (view === 'picker') { renderPicker(); return; }
+  closeFinishedScreen();
+  if (view === 'home')   { renderHome();   requestAnimationFrame(updatePhaseHeaderOffset); return; }
+  if (view === 'picker') { renderPicker(); requestAnimationFrame(updatePhaseHeaderOffset); return; }
   renderProject();
+  requestAnimationFrame(() => {
+    updatePhaseHeaderOffset();
+    updateHeaderScrollState();
+  });
 }
 
 function leaveChartMode() {
-  document.body.classList.remove('chart-page', 'chart-idle');
-  clearTimeout(uiIdleTimer);
+  document.body.classList.remove('chart-page');
   const dock = document.getElementById('chart-dock'); if (dock) dock.innerHTML = '';
 }
 
@@ -1534,7 +1725,6 @@ function renderProject() {
   renderHeader();
   renderPhase();
   renderTabs();
-  renderStats();
   renderGlobalRows();
 
   // NB: coerce to a real boolean — classList.toggle(cls, undefined) *flips*
@@ -1546,10 +1736,7 @@ function renderProject() {
   if (isChart) {
     renderChartDock();
     requestAnimationFrame(() => requestAnimationFrame(syncChartLayout));
-    wakeUI();
   } else {
-    document.body.classList.remove('chart-idle');
-    clearTimeout(uiIdleTimer);
     document.getElementById('chart-dock').innerHTML = '';
   }
 }
@@ -1602,9 +1789,9 @@ function renderPicker() {
 }
 
 // Build the header for the current view. Only rebuilds when the view/project
-// actually changes — otherwise the dynamic bits (progress bar, row count) are
-// updated in place by renderStats()/renderGlobalRows(), so checking off a step
-// doesn't tear down and relayout the header (which caused the content to jump).
+// actually changes — otherwise the dynamic bits (row count) are updated in
+// place by renderGlobalRows(), so checking off a step doesn't tear down and
+// relayout the header (which caused the content to jump).
 function renderHeader() {
   const h = document.getElementById('header');
   if (!h) return;
@@ -1627,9 +1814,9 @@ function renderHeader() {
         <div class="proj-title" onclick="renameProject('${proj ? proj.id : ''}')" title="Tap to rename">${proj ? escapeHtml(proj.name) : ''}</div>
         ${pat && pat.badge ? `<div class="proj-sub">${pat.badge}</div>` : ''}
       </div>
-      <div class="proj-progress" title="Overall pattern progress">
-        <div class="pp-pct" id="prog-pct">0%</div>
-        <div class="pp-label">complete</div>
+      <div class="proj-progress" title="Rows completed / total">
+        <div class="pp-pct" id="prog-rows">0</div>
+        <div class="pp-label">rows</div>
       </div>
     </div>`;
 }
@@ -1640,7 +1827,6 @@ function resetHeaderKey() { const h = document.getElementById('header'); if (h) 
 function openProject(id) {
   if (!activateProject(id)) return;
   view = 'project';
-  try { localStorage.setItem('pt3_lastProject', id); } catch(e) {}
   window.scrollTo(0, 0);
   render();
 }
@@ -1661,58 +1847,19 @@ function startNewProject() {
 
 function choosePattern(patternId) {
   const proj = createProject(patternId);
-  openProject(proj.id);
+  if (proj) openProject(proj.id);
 }
 
-const UI_IDLE_DELAY = 2500;
-const PANEL_ANIM_MS = 420;
-let uiIdleTimer = null;
-
-// Position the scrolling middle between the fixed header and fixed dock by
-// measuring their live heights, then re-centre the current row. The header and
-// dock are position:fixed, so they always sit at the real top/bottom of the
-// visible area — no viewport-height unit involved.
+// Header/content/dock are plain flex items on the chart page (see
+// body.chart-page CSS), so the content area's size is handled entirely by
+// flexbox — no measuring or manual positioning needed. This just re-centres
+// the current row, kept as its own function since layout-affecting events
+// (header show/hide, resize) need to re-run the recenter after the browser
+// has settled the new flex sizes.
 function syncChartLayout() {
   if (!document.body.classList.contains('chart-page')) return;
-  const header  = document.querySelector('.header');
-  const dock    = document.getElementById('chart-dock');
-  const content = document.querySelector('.content');
-  if (!content) return;
-  content.style.top    = (header ? header.getBoundingClientRect().height : 0) + 'px';
-  content.style.bottom = (dock   ? dock.getBoundingClientRect().height   : 0) + 'px';
   scrollChartToCurrent('auto');
 }
-
-// Keep the layout in sync while the panels (and thus the header/dock heights)
-// animate open/closed — re-measure every frame for the duration.
-function syncChartLayoutAnimated() {
-  const start = performance.now();
-  (function step(now) {
-    syncChartLayout();
-    if (now - start < PANEL_ANIM_MS) requestAnimationFrame(step);
-  })(start);
-}
-
-function scheduleIdle() {
-  clearTimeout(uiIdleTimer);
-  uiIdleTimer = setTimeout(() => {
-    document.body.classList.add('chart-idle');
-    syncChartLayoutAnimated();
-  }, UI_IDLE_DELAY);
-}
-
-function wakeUI() {
-  const wasIdle = document.body.classList.contains('chart-idle');
-  document.body.classList.remove('chart-idle');
-  if (wasIdle) syncChartLayoutAnimated();
-  scheduleIdle();
-}
-
-document.addEventListener('pointerdown', e => {
-  if (!document.body.classList.contains('chart-page')) return;
-  if (e.target.closest('.chart-vp') || e.target.closest('.chart-footer') || e.target.closest('.chart-recenter')) return;
-  wakeUI();
-});
 
 function go(i) {
   cur = i; phaseNavOpen = false; save(); render();
@@ -1738,11 +1885,23 @@ function changeCount(id, delta) {
   save(); render(); renderGlobalRows();
 }
 
+// Total row-equivalent units in the active pattern: row-counter targets,
+// the chart's row count, and one unit per step on "countable" phases (e.g.
+// tatting rings/chains) — matches how toggleStep/changeCount/changeChartRow
+// advance globalRows, so the two numbers stay comparable.
+function patternTotalRows() {
+  return PHASES.reduce((sum, p) => {
+    if (p.hasChart) return sum + CHART_TOTAL;
+    if (p.countable) return sum + p.steps.length;
+    return sum + p.steps.reduce((s, st) => s + (st.rows ? st.target : 0), 0);
+  }, 0);
+}
+
 // Global, project-wide row tally — read-only display that auto-advances with
 // the section row counters and the chart row.
 function renderGlobalRows() {
-  const el = document.getElementById('grow-val');
-  if (el) el.textContent = globalRows;
+  const el = document.getElementById('prog-rows');
+  if (el) el.textContent = globalRows + ' / ' + patternTotalRows();
 }
 
 // ── Service worker + update prompt ──
@@ -1751,7 +1910,7 @@ function showUpdateBanner(worker) {
   const b = document.createElement('div');
   b.id = 'update-banner';
   b.innerHTML = '<span>Update available</span><button onclick="applyUpdate()">Update now</button>';
-  document.body.appendChild(b);
+  bannerStack().appendChild(b);
   window._waitingSW = worker;
 }
 
@@ -1794,43 +1953,83 @@ window.addEventListener('resize', onViewportChange);
 window.addEventListener('orientationchange', onViewportChange);
 if (window.visualViewport) window.visualViewport.addEventListener('resize', onViewportChange);
 
+// Header auto-hide by scroll direction: hide on scroll down, reveal on scroll
+// up. Applies to both normal (window) scrolling and, on the chart page, the
+// internal .chart-vp scroll (see the listener wired up in renderPhase()).
+//
+// `scrollAnchor` is the scroll position where the header last changed state,
+// not just the previous frame's position — toggling only once net movement
+// since that anchor clears the threshold. Diffing frame-to-frame instead
+// would flip-flop on the small alternating deltas that momentum/inertial
+// scroll settling produces (a real device effect, easily seen when driving
+// scrollTop programmatically in tests).
+let lastScrollY = window.scrollY;
+let scrollAnchor = window.scrollY;
+let scrollTicking = false;
+const SCROLL_HIDE_THRESHOLD = 24; // net movement required before toggling
+const SCROLL_HIDE_MIN_Y = 40;     // always show header near the top
+
+function updatePhaseHeaderOffset() {
+  const h = document.getElementById('header');
+  if (!h) return;
+  const hidden = h.classList.contains('header-hidden');
+  document.documentElement.style.setProperty('--header-h', hidden ? '0px' : h.offsetHeight + 'px');
+  // scrollHeight reports the header's natural content height regardless of
+  // any max-height clipping, so this stays accurate whichever state it's in.
+  document.documentElement.style.setProperty('--chart-header-h', h.scrollHeight + 'px');
+  const nav = document.getElementById('chart-nav-btns');
+  if (nav) {
+    // Unlike the header, .nav-btns is a flex row: if scrollHeight is read
+    // while max-height is still constraining the box, the flex buttons
+    // themselves get compressed to fit (align-items: stretch + min-height:
+    // auto) instead of overflowing — so the "natural" reading comes out
+    // artificially small, poisoning this var on the very next transition.
+    // Bypassing the CSS var with an inline override for the read avoids it.
+    const prevMaxH = nav.style.maxHeight;
+    nav.style.maxHeight = 'none';
+    const navH = nav.scrollHeight;
+    nav.style.maxHeight = prevMaxH;
+    document.documentElement.style.setProperty('--chart-navbtns-h', navH + 'px');
+  }
+}
+
+function updateHeaderScrollState(scrollPos = null) {
+  scrollTicking = false;
+  const h = document.getElementById('header');
+  if (!h) return;
+  const nav = document.getElementById('chart-nav-btns');
+  const y = scrollPos !== null ? scrollPos : window.scrollY;
+  const delta = y - scrollAnchor;
+  if (y <= SCROLL_HIDE_MIN_Y) {
+    h.classList.remove('header-hidden');
+    if (nav) nav.classList.remove('nav-btns-hidden');
+    scrollAnchor = y;
+  } else if (delta > SCROLL_HIDE_THRESHOLD) {
+    h.classList.add('header-hidden');
+    if (nav) nav.classList.add('nav-btns-hidden');
+    scrollAnchor = y;
+  } else if (delta < -SCROLL_HIDE_THRESHOLD) {
+    h.classList.remove('header-hidden');
+    if (nav) nav.classList.remove('nav-btns-hidden');
+    scrollAnchor = y;
+  }
+  lastScrollY = y;
+  updatePhaseHeaderOffset();
+}
+window.addEventListener('scroll', () => {
+  if (!scrollTicking) {
+    scrollTicking = true;
+    requestAnimationFrame(() => updateHeaderScrollState());
+  }
+}, { passive: true });
+window.addEventListener('resize', updatePhaseHeaderOffset);
+
 migrateLegacy();
 migrateToProjects();
 loadGlobal();
 loadProjects();
 view = 'home';
 render();
-
-// Show extractor if ?extract in URL
-if (location.search.includes('extract')) showExtractor();
 </script>
-
-<!-- ── FIGMA EXTRACTOR PANEL (hidden by default) ── -->
-<div id="ext-panel" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:9999;overflow-y:auto;padding:24px;">
-  <div style="background:#fff;border-radius:12px;max-width:680px;margin:0 auto;padding:24px;font-family:monospace;font-size:13px;">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
-      <strong style="font-size:15px;font-family:sans-serif;">Figma Chart Extractor</strong>
-      <button onclick="document.getElementById('ext-panel').style.display='none'" style="border:none;background:none;font-size:20px;cursor:pointer;">✕</button>
-    </div>
-    <p style="font-family:sans-serif;font-size:13px;color:#555;margin-bottom:12px;">
-      Reads Chart B directly from the Figma REST API using raw node JSON — no code generation. Each cell's <code>componentId</code> is mapped to a stitch token.
-    </p>
-    <label style="font-family:sans-serif;font-size:12px;font-weight:600;display:block;margin-bottom:4px;">Figma Personal Access Token</label>
-    <input id="ext-token" type="password" placeholder="figd_…"
-      style="width:100%;padding:8px;border:1px solid #ccc;border-radius:6px;font-size:13px;margin-bottom:10px;box-sizing:border-box;">
-    <button onclick="extractChartFromFigma(document.getElementById('ext-token').value.trim())"
-      style="background:#2563eb;color:#fff;border:none;border-radius:6px;padding:10px 20px;font-size:13px;cursor:pointer;margin-bottom:16px;">
-      Extract Chart Data
-    </button>
-    <pre id="ext-log" style="background:#f5f5f5;border-radius:6px;padding:12px;max-height:240px;overflow-y:auto;white-space:pre-wrap;font-size:11px;margin-bottom:12px;"></pre>
-    <button id="ext-apply-btn" onclick="location.reload()" style="display:none;background:#16a34a;color:#fff;border:none;border-radius:6px;padding:10px 20px;font-size:13px;cursor:pointer;margin-bottom:12px;">
-      ✓ Reload App with New Chart Data
-    </button>
-    <label style="font-family:sans-serif;font-size:12px;font-weight:600;display:block;margin-bottom:4px;">CHART_B Output (backup)</label>
-    <textarea id="ext-output" rows="8"
-      style="width:100%;padding:8px;border:1px solid #ccc;border-radius:6px;font-size:11px;box-sizing:border-box;"
-      placeholder="Extracted array will appear here…"></textarea>
-  </div>
-</div>
 </body>
 </html>
