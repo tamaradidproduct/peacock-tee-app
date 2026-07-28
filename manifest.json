@@ -1,21 +1,21 @@
 {
-  "name": "Pattern library",
-  "short_name": "Pattern library",
+  "name": "Stitch Ease",
+  "short_name": "Stitch Ease",
   "description": "Row-by-row knitting pattern tracker library",
-  "start_url": "/",
+  "start_url": "./",
   "display": "standalone",
   "orientation": "portrait",
   "background_color": "#f5f2ed",
   "theme_color": "#4a6b5a",
   "icons": [
     {
-      "src": "/icon-192.png",
+      "src": "icon-192.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any maskable"
     },
     {
-      "src": "/icon-512.png",
+      "src": "icon-512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"

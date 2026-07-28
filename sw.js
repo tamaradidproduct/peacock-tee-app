@@ -1,12 +1,13 @@
-const CACHE = 'peacock-tee-v16';
+const CACHE = 'stitch-ease-v1';
 // Precached so a fresh install works offline. /js/** is also network-first at
 // runtime (see fetch below), so a missing entry here degrades to a cache miss
-// on first offline load, never to stale code.
-const ASSETS = ['/', '/index.html', '/manifest.json', '/icon-192.png', '/icon-512.png', '/apple-touch-icon.png',
-  '/js/core/state.js',
-  '/js/core/storage.js',
-  '/js/patterns/peacock-tee.js',
-  '/js/patterns/tatted-triangle.js'];
+// on first offline load, never to stale code. Paths are relative to the app's
+// base (/stitch-ease/) so they work on GitHub Pages.
+const ASSETS = ['./', './index.html', './manifest.json', './icon-192.png', './icon-512.png', './apple-touch-icon.png',
+  './js/core/state.js',
+  './js/core/storage.js',
+  './js/patterns/peacock-tee.js',
+  './js/patterns/tatted-triangle.js'];
 
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(ASSETS)));
@@ -42,7 +43,7 @@ self.addEventListener('fetch', e => {
   // is what removes the need for ?v= cache-busting query strings — those
   // would have to stay in lockstep with the cache name by hand, and drift
   // would ship a half-updated app.
-  if (isHTML || url.pathname.startsWith('/js/')) {
+  if (isHTML || url.pathname.includes('/js/')) {
     e.respondWith(
       fetch(req)
         .then(res => {
@@ -52,9 +53,9 @@ self.addEventListener('fetch', e => {
         })
         // ignoreSearch so a navigation carrying a query (e.g. an OAuth
         // ?code= return) still matches the cached page rather than
-        // accidentally falling through to the /index.html branch.
+        // accidentally falling through to the index.html fallback.
         .catch(() => caches.match(req, { ignoreSearch: isHTML })
-                       .then(c => c || (isHTML ? caches.match('/index.html') : undefined)))
+                       .then(c => c || (isHTML ? caches.match('./index.html') : undefined)))
     );
     return;
   }
