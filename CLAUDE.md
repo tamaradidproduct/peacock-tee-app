@@ -1,7 +1,7 @@
 # Peacock Tee Tracker — Project Handoff
 
 ## What this is
-A single-page PWA knitting **pattern library**, built for mobile use while knitting. It opens on a home/library screen listing patterns; tapping one opens the step-by-step tracker for that pattern. The Peacock Tee (Size S, 97 cm) is the first built-in pattern. Deployed at: **https://peacock-tee-small.netlify.app**
+A single-page PWA knitting **pattern library**, built for mobile use while knitting. It opens on a home/library screen listing patterns; tapping one opens the step-by-step tracker for that pattern. The Peacock Tee (Size S, 97 cm) is the first built-in pattern. Deployed at: **https://tamaradidproduct.github.io/stitch_ease/**
 
 ## File structure
 ```
@@ -9,22 +9,16 @@ peacock-tee-deploy/
   index.html      ← entire app (HTML + CSS + JS, single file)
   sw.js           ← service worker (network-first HTML + update prompt)
   manifest.json   ← PWA manifest
-  netlify.toml    ← static-site build config (no build command)
   icon-192.png    ← app icon
   icon-512.png    ← app icon
   CLAUDE.md       ← this file
 ```
 
 ## Deployment
-- Hosted on Netlify (project `peacock-tee-small`), connected to GitHub repo **tamaradidproduct/peacock-tee-app**.
-- **Netlify auto-deploys on every push to `main`** (`netlify.toml` says so at the top). Confirmed working: 20+ successful git-triggered production builds since mid-June, current billing period usage ~2 build-minutes. **Merging a PR into `main` is the deploy action** — nothing further to run.
-  - A prior note here claimed auto-builds were blocked by the free-plan build-minute limit. That traced to one incident on 2026-06-16 (`account credit usage exceeded`, plus the repo being private and pre-verification at the time) — it hasn't recurred since the repo went public, and isn't a live constraint. Don't reintroduce the "always CLI deploy" workaround without checking current usage first (`netlify api getAccountBuildStatus --data '{"account_id":"<id>"}'`).
-  - Manual fallback, for anything that can't wait on a PR:
-    ```bash
-    netlify deploy --prod --dir=.
-    ```
-- **Only merge/deploy when the user explicitly asks** — make and verify changes locally, commit, push, and open a PR; hold the merge (and any manual deploy) until requested.
-- Service worker cache is named `peacock-tee-vN` — bump N in `sw.js` when deploying a change so clients refresh. HTML is served **network-first** (see SW section), so page updates land on next load without a manual cache bump; bump N mainly for the cached static assets.
+- Hosted on **GitHub Pages** at https://tamaradidproduct.github.io/stitch_ease/, deploying from the `main` branch.
+- **Auto-deploys on every push to `main`** — GitHub Pages rebuilds the site instantly when the branch updates. **Merging a PR into `main` is the deploy action** — nothing further to run.
+- **Only merge when the user explicitly asks** — make and verify changes locally, commit, push, and open a PR; hold the merge until requested.
+- Service worker cache is named `stitch-ease-vN` — bump N in `sw.js` when deploying a change so clients refresh. HTML is served **network-first** (see SW section), so page updates land on next load without a manual cache bump; bump N mainly for the cached static assets.
 
 ## How the app works
 
