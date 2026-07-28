@@ -63,7 +63,12 @@
   body.chart-page .header {
     position: static; flex: 0 0 auto;
     padding: 0.55rem 1.25rem 0.5rem;
-    max-height: 300px; overflow: hidden;
+    /* Capped to the header's real measured height (--chart-header-h, set in
+       JS) rather than an arbitrary overshoot — with max-height far bigger
+       than the content, the box sits at its natural height for most of the
+       transition and only visibly moves in the last sliver of it, reading
+       as a snap instead of a slide. */
+    max-height: var(--chart-header-h, 300px); overflow: hidden;
     transition: max-height 0.25s ease, opacity 0.25s ease, padding 0.25s ease, border-color 0.25s ease;
   }
   body.chart-page .header.header-hidden {
@@ -318,9 +323,8 @@
   .note-def { font-size: 15px; line-height: 1.5; color: var(--text); }
   .phase-name { font-family: Georgia, serif; font-size: 1.35rem; font-weight: 400; color: var(--text); margin-bottom: 2px; }
   .phase-desc { font-size: 12px; color: var(--muted); }
-  /* Chart page: inside the fixed overlay the card background already applies */
   body.chart-page .phase-header {
-    background: transparent;
+    background: var(--phase-band-bg);
     margin: 0; padding: 8px 14px 7px;
     position: static;
   }
@@ -487,12 +491,15 @@
     transition: max-height 0.35s ease, opacity 0.25s ease, padding 0.35s ease, border-color 0.35s ease;
   }
 
-  /* Chart confirm step — sits directly under row 44 (the last row worked) */
+  /* Chart confirm step — nested inside .chart-recap (same "what do I do
+     now" panel as the row instructions), shown only on the last row. The
+     negative margins cancel .chart-recap's padding so this still bleeds
+     edge-to-edge like the rest of the dock's rows. */
   .chart-confirm-step {
     display: flex; align-items: center; gap: 12px;
-    padding: 10px 14px;
-    border-top: 1px solid var(--border); border-bottom: 1px solid var(--border);
-    background: var(--bg);
+    margin: 8px -16px -9px;
+    padding: 10px 16px;
+    border-top: 1px solid var(--border);
     cursor: pointer; -webkit-user-select: none; user-select: none;
     transition: background 0.15s;
   }
@@ -513,6 +520,10 @@
   }
   .chart-dock .nav-btns {
     position: static;
+    /* Base .nav-btns bleeds edge-to-edge via a negative margin that cancels
+       .content's 1.25rem padding — there's no such padding here, so it must
+       be reset or the buttons overflow the dock and get clipped. */
+    margin: 0;
     padding: 8px 12px 10px;
     max-height: 120px; overflow: hidden;
     transition: max-height 0.35s ease, opacity 0.25s ease, padding 0.35s ease, border-color 0.35s ease;
@@ -1081,7 +1092,7 @@ function stitchCell(type) {
   return `<div class="cc">${sym ? `<span class="cc-sym">${sym}</span>` : ''}</div>`;
 }
 
-function buildChartTracker(confirmStep, phaseHeaderHtml) {
+function buildChartTracker(phaseHeaderHtml) {
   let html = '<div class="chart-tracker">';
 
   // Top panel: just the phase header (minimized grab bar when idle) — the
@@ -1113,14 +1124,6 @@ function buildChartTracker(confirmStep, phaseHeaderHtml) {
     html += '</div>';
     html += `<div class="${numCls}">${r}</div>`;
     html += '</div>';
-
-    if (r === CHART_TOTAL && confirmStep) {
-      const done = state[confirmStep.id];
-      html += `<div class="chart-confirm-step ${done ? 'done' : ''}" onclick="toggleStep('${confirmStep.id}')">
-        <div class="step-circle">${CHECK_SVG}</div>
-        <div class="step-text">${confirmStep.text}</div>
-      </div>`;
-    }
   }
 
   html += '</div></div>'; // chart-inner + chart-vp
@@ -1214,8 +1217,22 @@ function rowRecap(row) {
 }
 
 function recapHtml(row) {
-  return `<div class="recap-head">Work Chart B in the round · read right → left, bottom to top</div>
+  let html = `<div class="recap-head">Work Chart B in the round · read right → left, bottom to top</div>
     <div class="recap-body"><strong>Row ${row}:</strong> ${rowRecap(row)}</div>`;
+
+  // Post-chart confirm step — the last step of the chart phase, surfaced
+  // alongside the row instructions (same "what do I do now" panel) rather
+  // than as a separate block further down. Only relevant once the last row
+  // is reached — it's the count you take after finishing the chart.
+  const confirmStep = PHASES[cur].steps.find(s => s.postChart);
+  if (confirmStep && row === CHART_TOTAL) {
+    const done = state[confirmStep.id];
+    html += `<div class="chart-confirm-step ${done ? 'done' : ''}" onclick="toggleStep('${confirmStep.id}')">
+      <div class="step-circle">${CHECK_SVG}</div>
+      <div class="step-text">${confirmStep.text}</div>
+    </div>`;
+  }
+  return html;
 }
 
 function renderChartDock() {
@@ -1257,11 +1274,7 @@ function scrollChartToCurrent(behavior) {
   const ROW_H = getRowH();
   const visIdx = CHART_TOTAL - chartCurrentRow; // row 44 = index 0 (top), row 1 = index 43 (bottom)
   const padTop = parseFloat(getComputedStyle(inner).paddingTop) || 8;
-  // The post-chart confirm step (if any) sits directly under row 44, pushing
-  // every row below it down by its own height — account for that offset.
-  const confirmEl = inner.querySelector('.chart-confirm-step');
-  const confirmH = (confirmEl && visIdx >= 1) ? confirmEl.getBoundingClientRect().height : 0;
-  const rowCenter = padTop + visIdx * ROW_H + ROW_H / 2 + confirmH;
+  const rowCenter = padTop + visIdx * ROW_H + ROW_H / 2;
   const target = rowCenter - vpH / 2;
   const maxScroll = inner.scrollHeight - vpH;
 
@@ -1458,8 +1471,7 @@ function renderPhase() {
   let html = '';
 
   if (p.hasChart) {
-    const confirmStep = p.steps.find(s => s.postChart);
-    html += buildChartTracker(confirmStep, phaseHeaderHtml);
+    html += buildChartTracker(phaseHeaderHtml);
   } else {
     html += phaseHeaderHtml;
     if (showCompleted) html += `<div class="steps-row"><span class="steps-row-label">Steps</span><span class="steps-row-count"><span class="src-num">${doneSteps} / ${totalSteps}</span><span class="src-lbl">completed</span></span></div>`;
@@ -1632,7 +1644,7 @@ function renderHeader() {
         <div class="proj-title" onclick="renameProject('${proj ? proj.id : ''}')" title="Tap to rename">${proj ? escapeHtml(proj.name) : ''}</div>
         ${pat && pat.badge ? `<div class="proj-sub">${pat.badge}</div>` : ''}
       </div>
-      <div class="proj-progress" title="Total rows completed">
+      <div class="proj-progress" title="Rows completed / total">
         <div class="pp-pct" id="prog-rows">0</div>
         <div class="pp-label">rows</div>
       </div>
@@ -1704,11 +1716,23 @@ function changeCount(id, delta) {
   save(); render(); renderGlobalRows();
 }
 
+// Total row-equivalent units in the active pattern: row-counter targets,
+// the chart's row count, and one unit per step on "countable" phases (e.g.
+// tatting rings/chains) — matches how toggleStep/changeCount/changeChartRow
+// advance globalRows, so the two numbers stay comparable.
+function patternTotalRows() {
+  return PHASES.reduce((sum, p) => {
+    if (p.hasChart) return sum + CHART_TOTAL;
+    if (p.countable) return sum + p.steps.length;
+    return sum + p.steps.reduce((s, st) => s + (st.rows ? st.target : 0), 0);
+  }, 0);
+}
+
 // Global, project-wide row tally — read-only display that auto-advances with
 // the section row counters and the chart row.
 function renderGlobalRows() {
   const el = document.getElementById('prog-rows');
-  if (el) el.textContent = globalRows;
+  if (el) el.textContent = globalRows + ' / ' + patternTotalRows();
 }
 
 // ── Service worker + update prompt ──
@@ -1781,6 +1805,9 @@ function updatePhaseHeaderOffset() {
   if (!h) return;
   const hidden = h.classList.contains('header-hidden');
   document.documentElement.style.setProperty('--header-h', hidden ? '0px' : h.offsetHeight + 'px');
+  // scrollHeight reports the header's natural content height regardless of
+  // any max-height clipping, so this stays accurate whichever state it's in.
+  document.documentElement.style.setProperty('--chart-header-h', h.scrollHeight + 'px');
 }
 
 function updateHeaderScrollState(scrollPos = null) {
