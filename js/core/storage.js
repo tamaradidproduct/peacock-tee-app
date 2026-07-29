@@ -166,3 +166,28 @@ function projectProgress(proj) {
   } catch(e) {}
   return { done, total, pct: total ? Math.round(done / total * 100) : 0 };
 }
+
+// Reset progress for the current phase only.
+function resetPhase() {
+  if (!activeProjectId || !PHASES[cur]) return;
+  const phase = PHASES[cur];
+  phase.steps.forEach(s => {
+    state[s.id] = false;
+    if (s.rows) ctrs[s.id] = 0;
+  });
+  save();
+  render();
+}
+
+// Reset progress for the entire pattern.
+function resetPattern() {
+  if (!activeProjectId) return;
+  state = {};
+  ctrs = {};
+  chartCurrentRow = 1;
+  globalRows = 0;
+  cur = 0;
+  PHASES.forEach(ph => ph.steps.forEach(s => { state[s.id] = false; if (s.rows) ctrs[s.id] = 0; }));
+  save();
+  render();
+}

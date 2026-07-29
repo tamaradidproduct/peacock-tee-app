@@ -147,6 +147,13 @@
   /* Overall project progress, right side of the header (mirrors the
      per-section "X / Y completed" treatment). */
   .proj-progress { flex-shrink: 0; text-align: center; }
+  .proj-menu-btn {
+    flex-shrink: 0; background: none; border: none; color: var(--muted);
+    cursor: pointer; padding: 4px 8px; font-size: 20px; line-height: 1;
+    display: flex; align-items: center; justify-content: center;
+    transition: color 0.15s;
+  }
+  .proj-menu-btn:active { color: var(--text); }
   .pp-pct { font-size: 12px; font-weight: 700; color: var(--accent); font-variant-numeric: tabular-nums; }
   .pp-label { font-size: 8px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); margin-top: 1px; }
   .header h1 {
@@ -267,6 +274,23 @@
     cursor: pointer; padding: 2px; display: flex; align-items: center; margin-top: 2px;
   }
   .phase-folder:active { color: var(--text); }
+
+  /* ── Reset menu (context menu on project title) ── */
+  .reset-menu {
+    position: fixed; z-index: 250;
+    background: var(--card); border: 1px solid var(--border); border-radius: var(--radius);
+    box-shadow: 0 4px 16px rgba(0,0,0,0.15);
+    display: flex; flex-direction: column;
+    min-width: 200px; overflow: hidden;
+  }
+  .reset-menu-item {
+    padding: 12px 16px; border: none; background: transparent; color: var(--text);
+    text-align: left; font-size: 14px; font-family: inherit; cursor: pointer;
+    transition: background 0.12s;
+    border-bottom: 1px solid var(--border);
+  }
+  .reset-menu-item:last-child { border-bottom: none; }
+  .reset-menu-item:active { background: var(--bg); }
 
   /* Steps row — label + "X / Y completed", sits above the step list */
   .steps-row { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 12px; }
