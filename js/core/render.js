@@ -184,6 +184,59 @@ function closeNotes() {
   if (s) s.remove();
 }
 
+// Context menu for resetting project progress.
+function showResetMenu(e) {
+  if (e.preventDefault) e.preventDefault();
+  closeResetMenu(); // never stack two
+  const proj = activeProject();
+  const phase = PHASES[cur];
+  const menu = document.createElement('div');
+  menu.className = 'reset-menu';
+  menu.id = 'reset-menu';
+  menu.innerHTML = `
+    <button class="reset-menu-item" onclick="confirmResetPhase('${proj ? proj.id : ''}', '${phase ? phase.name : ''}')">
+      Reset "${phase ? escapeHtml(phase.name) : 'this section'}"
+    </button>
+    <button class="reset-menu-item" onclick="confirmResetPattern('${proj ? proj.id : ''}')">
+      Reset all progress
+    </button>
+  `;
+  document.body.appendChild(menu);
+  const rect = e.target.getBoundingClientRect();
+  const margin = 8;
+  // Prefer below + right-aligned to the target, but clamp to the viewport on
+  // every side — the target can sit anywhere from the far-left title to the
+  // far-right menu button, and the menu must never render off-screen.
+  let top = rect.bottom + 4;
+  if (top + menu.offsetHeight > window.innerHeight - margin) {
+    top = rect.top - menu.offsetHeight - 4;
+  }
+  top = Math.max(margin, Math.min(top, window.innerHeight - menu.offsetHeight - margin));
+
+  let left = rect.right - menu.offsetWidth;
+  left = Math.max(margin, Math.min(left, window.innerWidth - menu.offsetWidth - margin));
+
+  menu.style.top = top + 'px';
+  menu.style.left = left + 'px';
+}
+
+function closeResetMenu() {
+  const m = document.getElementById('reset-menu');
+  if (m) m.remove();
+}
+
+function confirmResetPhase(projectId, phaseName) {
+  closeResetMenu();
+  if (!confirm('Reset "' + phaseName + '"?\n\nThis will clear the progress for just this section.')) return;
+  resetPhase();
+}
+
+function confirmResetPattern(projectId) {
+  closeResetMenu();
+  if (!confirm('Reset all progress?\n\nThis will clear every step and return to the beginning.')) return;
+  resetPattern();
+}
+
 // Confetti fill/size are randomized per open so the celebration doesn't
 // look identical every time.
 const CONFETTI_COLORS = ['#4a6b5a', '#2563eb', '#e0a640', '#c96a4f', '#8a8178'];
@@ -347,13 +400,14 @@ function renderHeader() {
   h.innerHTML = `<div class="header-top proj-head">
       <button class="lib-back" onclick="goHome()" aria-label="Back to projects">${BACK_CHEVRON_SVG}</button>
       <div class="proj-heading">
-        <div class="proj-title" onclick="renameProject('${proj ? proj.id : ''}')" title="Tap to rename">${proj ? escapeHtml(proj.name) : ''}</div>
+        <div class="proj-title" onclick="renameProject('${proj ? proj.id : ''}')" oncontextmenu="showResetMenu(event)" title="Tap to rename, right-click to reset">${proj ? escapeHtml(proj.name) : ''}</div>
         ${pat && pat.badge ? `<div class="proj-sub">${pat.badge}</div>` : ''}
       </div>
       <div class="proj-progress" title="Rows completed / total">
         <div class="pp-pct" id="prog-rows">0</div>
         <div class="pp-label">rows</div>
       </div>
+      <button class="proj-menu-btn" onclick="showResetMenu(event)" aria-label="Options" title="Reset progress">⋮</button>
     </div>`;
 }
 // Force the header to rebuild on next render (e.g. after a project rename,
