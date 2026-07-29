@@ -187,7 +187,6 @@ function resetPattern() {
   chartCurrentRow = 1;
   globalRows = 0;
   cur = 0;
-  PHASES.forEach(ph => ph.steps.forEach(s => { state[s.id] = false; if (s.rows) ctrs[s.id] = 0; }));
   save();
   render();
 }
