@@ -70,6 +70,23 @@ function cadenceHintHtml(s, ctr, done) {
   </div>`;
 }
 
+// Bullets on a step with a repeat counter (`rows`) are individually
+// checkable: ticking every bullet for one pass auto-advances the counter and
+// resets them, ready for the next pass (see toggleSubStep() in app.js).
+// Bullets without a counter are just an informational list (one-off steps).
+function bulletsHtml(s) {
+  if (!s.bullets) return '';
+  if (!s.rows) return `<ul class="step-bullets">${s.bullets.map(b => `<li>${b}</li>`).join('')}</ul>`;
+  const items = s.bullets.map((b, i) => {
+    const bd = !!state[s.id + '__b' + i];
+    return `<li class="${bd ? 'done' : ''}" onclick="event.stopPropagation(); toggleSubStep('${s.id}', ${i})">
+      <span class="sub-check">${bd ? CHECK_SVG : ''}</span>
+      <span class="sub-text">${b}</span>
+    </li>`;
+  }).join('');
+  return `<ul class="step-bullets checkable">${items}</ul>`;
+}
+
 function stepHtml(s) {
   const done = state[s.id];
   const ctr  = s.rows ? (ctrs[s.id] || 0) : 0;
@@ -81,7 +98,7 @@ function stepHtml(s) {
     <div class="step-circle">${CHECK_SVG}</div>
     <div class="step-body">
       <div class="step-text">${s.text.replace(/\n/g, '<br>')}</div>
-      ${s.bullets ? `<ul class="step-bullets">${s.bullets.map(b => `<li>${b}</li>`).join('')}</ul>` : ''}
+      ${bulletsHtml(s)}
       ${cadenceHintHtml(s, ctr, done)}
       ${s.rows ? `
       <div class="row-counter" onclick="event.stopPropagation()">

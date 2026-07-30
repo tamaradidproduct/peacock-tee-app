@@ -156,25 +156,35 @@ function migrateToProjects() {
 }
 
 // Done-steps / total for a project, read from its saved state (for home cards).
+// Counts only real step ids — a step's checkable bullets (stepId + '__b' +
+// index, see toggleSubStep()) live in the same state object but aren't steps
+// of their own, so they're excluded rather than inflating the tally.
 function projectProgress(proj) {
   const pat = patternById(proj.patternId);
   const total = pat ? pat.phases.reduce((a, ph) => a + ph.steps.length, 0) : 0;
   let done = 0;
   try {
     const raw = localStorage.getItem('pt3_proj_' + proj.id + '_state');
-    if (raw) done = Object.values(JSON.parse(raw)).filter(Boolean).length;
+    if (raw && pat) {
+      const st = JSON.parse(raw);
+      const ids = new Set(pat.phases.flatMap(ph => ph.steps.map(s => s.id)));
+      done = Object.keys(st).filter(k => ids.has(k) && st[k]).length;
+    }
   } catch(e) {}
   return { done, total, pct: total ? Math.round(done / total * 100) : 0 };
+}
+
+// Clears a step's own done-flag/counter, plus any checkable-bullet sub-state.
+function resetStep(s) {
+  state[s.id] = false;
+  if (s.rows) ctrs[s.id] = 0;
+  if (s.bullets) s.bullets.forEach((_, i) => { state[s.id + '__b' + i] = false; });
 }
 
 // Reset progress for the current phase only.
 function resetPhase() {
   if (!activeProjectId || !PHASES[cur]) return;
-  const phase = PHASES[cur];
-  phase.steps.forEach(s => {
-    state[s.id] = false;
-    if (s.rows) ctrs[s.id] = 0;
-  });
+  PHASES[cur].steps.forEach(resetStep);
   save();
   render();
 }
@@ -187,7 +197,7 @@ function resetPattern() {
   chartCurrentRow = 1;
   globalRows = 0;
   cur = 0;
-  PHASES.forEach(ph => ph.steps.forEach(s => { state[s.id] = false; if (s.rows) ctrs[s.id] = 0; }));
+  PHASES.forEach(ph => ph.steps.forEach(resetStep));
   save();
   render();
 }

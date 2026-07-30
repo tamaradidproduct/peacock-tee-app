@@ -53,6 +53,24 @@ function toggleStep(id) {
   save(); render();
 }
 
+// A step's bullets (when it also has a repeat counter) are individually
+// checkable sub-steps: completing every bullet for the current pass advances
+// the counter by one and resets them for the next pass, instead of requiring
+// a separate tap on the +/- counter.
+function toggleSubStep(stepId, idx) {
+  const step = PHASES.flatMap(p => p.steps).find(s => s.id === stepId);
+  if (!step || !step.bullets) return;
+  const key = stepId + '__b' + idx;
+  state[key] = !state[key];
+  const allDone = step.bullets.every((_, i) => state[stepId + '__b' + i]);
+  if (allDone) {
+    step.bullets.forEach((_, i) => { state[stepId + '__b' + i] = false; });
+    changeCount(stepId, 1); // saves + renders
+  } else {
+    save(); render();
+  }
+}
+
 function changeCount(id, delta) {
   const step = PHASES.flatMap(p => p.steps).find(s => s.id === id);
   const max  = step ? step.target : 999;
