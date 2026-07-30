@@ -449,6 +449,23 @@
   .step.done .step-bullets li { color: var(--done-text); }
   .step.done .step-bullets li::before { background: var(--accent-mid); }
 
+  /* Checkable bullets (a repeat's individual rings/chains) — tapping one
+     doesn't toggle the parent step, see event.stopPropagation() in render.js */
+  .step-bullets.checkable li {
+    display: flex; align-items: flex-start; gap: 10px;
+    padding-left: 0; cursor: pointer;
+  }
+  .step-bullets.checkable li::before { content: none; }
+  .sub-check {
+    width: 18px; height: 18px; border-radius: 5px;
+    border: 2px solid var(--muted); background: transparent;
+    flex-shrink: 0; display: flex; align-items: center; justify-content: center;
+    margin-top: 2px; transition: all 0.15s;
+  }
+  .sub-check svg { display: block; width: 10px; height: 8px; }
+  .step-bullets.checkable li.done .sub-check { background: var(--checkbox-done); border-color: var(--checkbox-done); }
+  .step-bullets.checkable li.done .sub-text { color: var(--done-text); text-decoration: line-through; text-decoration-color: var(--muted); }
+
   /* Per-round cadence reminder (e.g. increase vs plain round) */
   .round-hint {
     margin-top: 10px; padding: 9px 12px; border-radius: var(--radius-sm);
