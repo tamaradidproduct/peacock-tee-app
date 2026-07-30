@@ -49,13 +49,10 @@ const LENORE_PHASES = [
           'Chain I: 2 - 2 - 2 - 4',
         ],
         rows:true, target:3, lbl:'repeat: Ring D – Chain I'},
-      {id:'r1-jkli', text:'Ring J – Chain I (transition, once):',
-        bullets:[
-          'Ring J: 2 + 2 - 2 - 2 (join to last Ring F)',
-          'Chain K: 2 - 2 - 2 - 2',
-          'Ring L: 2 + 2 - 2 - 2 (join to Ring J)',
-          'Chain I: 2 - 2 - 2 - 4',
-        ]},
+      {id:'r1-j', text:'Ring J: 2 + 2 - 2 - 2 (join to last Ring F)'},
+      {id:'r1-k', text:'Chain K: 2 - 2 - 2 - 2'},
+      {id:'r1-l', text:'Ring L: 2 + 2 - 2 - 2 (join to Ring J)'},
+      {id:'r1-i2', text:'Chain I: 2 - 2 - 2 - 4'},
       {id:'r1-def2', text:'Ring D – Ring F (repeat unit) — ends with 6 Ring E’s forming "points":',
         bullets:[
           'Ring D: 2 - 2 + 2 - 2 - 2 (join to last Ring L)',
