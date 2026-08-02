@@ -1,4 +1,4 @@
-const CACHE = 'stitch-ease-v4';
+const CACHE = 'stitch-ease-v5';
 // Precached so a fresh install works offline. /js/** is also network-first at
 // runtime (see fetch below), so a missing entry here degrades to a cache miss
 // on first offline load, never to stale code. Paths are relative to the app's
@@ -46,9 +46,15 @@ self.addEventListener('fetch', e => {
   // is what removes the need for ?v= cache-busting query strings — those
   // would have to stay in lockstep with the cache name by hand, and drift
   // would ship a half-updated app.
+  //
+  // cache: 'no-store' matters here: GitHub Pages serves these files with
+  // `cache-control: max-age=600`, and a plain fetch() honors that — the
+  // browser's own HTTP cache can silently satisfy this "network-first"
+  // request without ever hitting the network, serving up to 10 minutes of
+  // stale code right after a deploy. no-store forces an actual round trip.
   if (isHTML || url.pathname.includes('/js/')) {
     e.respondWith(
-      fetch(req)
+      fetch(req, { cache: 'no-store' })
         .then(res => {
           const copy = res.clone();
           caches.open(CACHE).then(c => c.put(req, copy));
