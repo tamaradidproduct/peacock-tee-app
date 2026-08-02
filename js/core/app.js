@@ -149,8 +149,7 @@ window.addEventListener('orientationchange', onViewportChange);
 if (window.visualViewport) window.visualViewport.addEventListener('resize', onViewportChange);
 
 // Header auto-hide by scroll direction: hide on scroll down, reveal on scroll
-// up. Applies to both normal (window) scrolling and, on the chart page, the
-// internal .chart-vp scroll (see the listener wired up in renderPhase()).
+// up. Non-chart pages only — the chart page's header/dock are always visible.
 //
 // `scrollAnchor` is the scroll position where the header last changed state,
 // not just the previous frame's position — toggling only once net movement
@@ -169,43 +168,29 @@ function updatePhaseHeaderOffset() {
   if (!h) return;
   const hidden = h.classList.contains('header-hidden');
   document.documentElement.style.setProperty('--header-h', hidden ? '0px' : h.offsetHeight + 'px');
-  // scrollHeight reports the header's natural content height regardless of
-  // any max-height clipping, so this stays accurate whichever state it's in.
-  document.documentElement.style.setProperty('--chart-header-h', h.scrollHeight + 'px');
-  const nav = document.getElementById('chart-nav-btns');
-  if (nav) {
-    // Unlike the header, .nav-btns is a flex row: if scrollHeight is read
-    // while max-height is still constraining the box, the flex buttons
-    // themselves get compressed to fit (align-items: stretch + min-height:
-    // auto) instead of overflowing — so the "natural" reading comes out
-    // artificially small, poisoning this var on the very next transition.
-    // Bypassing the CSS var with an inline override for the read avoids it.
-    const prevMaxH = nav.style.maxHeight;
-    nav.style.maxHeight = 'none';
-    const navH = nav.scrollHeight;
-    nav.style.maxHeight = prevMaxH;
-    document.documentElement.style.setProperty('--chart-navbtns-h', navH + 'px');
-  }
 }
 
-function updateHeaderScrollState(scrollPos = null) {
+function updateHeaderScrollState() {
   scrollTicking = false;
   const h = document.getElementById('header');
   if (!h) return;
-  const nav = document.getElementById('chart-nav-btns');
-  const y = scrollPos !== null ? scrollPos : window.scrollY;
+  // The chart page's header is always visible — never let it hide, even if a
+  // stray scroll event fires during a phase-transition race.
+  if (document.body.classList.contains('chart-page')) {
+    h.classList.remove('header-hidden');
+    updatePhaseHeaderOffset();
+    return;
+  }
+  const y = window.scrollY;
   const delta = y - scrollAnchor;
   if (y <= SCROLL_HIDE_MIN_Y) {
     h.classList.remove('header-hidden');
-    if (nav) nav.classList.remove('nav-btns-hidden');
     scrollAnchor = y;
   } else if (delta > SCROLL_HIDE_THRESHOLD) {
     h.classList.add('header-hidden');
-    if (nav) nav.classList.add('nav-btns-hidden');
     scrollAnchor = y;
   } else if (delta < -SCROLL_HIDE_THRESHOLD) {
     h.classList.remove('header-hidden');
-    if (nav) nav.classList.remove('nav-btns-hidden');
     scrollAnchor = y;
   }
   lastScrollY = y;

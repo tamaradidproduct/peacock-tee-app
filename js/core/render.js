@@ -155,21 +155,6 @@ function renderPhase() {
   }
 
   document.getElementById('phase-content').innerHTML = html;
-
-  // On chart pages, apply header scroll animation to the chart viewport scroll
-  if (p.hasChart) {
-    requestAnimationFrame(() => {
-      const chartVp = document.getElementById('chart-vp');
-      if (chartVp) {
-        chartVp.addEventListener('scroll', () => {
-          if (!scrollTicking) {
-            scrollTicking = true;
-            requestAnimationFrame(() => updateHeaderScrollState(chartVp.scrollTop));
-          }
-        }, { passive: true });
-      }
-    });
-  }
 }
 
 // Notes icon → bottom sheet with the pattern's stitch help / abbreviations.
