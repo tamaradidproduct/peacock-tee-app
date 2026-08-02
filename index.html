@@ -63,17 +63,6 @@
   body.chart-page .header {
     position: static; flex: 0 0 auto;
     padding: 0.55rem 1.25rem 0.5rem;
-    /* Capped to the header's real measured height (--chart-header-h, set in
-       JS) rather than an arbitrary overshoot — with max-height far bigger
-       than the content, the box sits at its natural height for most of the
-       transition and only visibly moves in the last sliver of it, reading
-       as a snap instead of a slide. */
-    max-height: var(--chart-header-h, 300px); overflow: hidden;
-    transition: max-height 0.25s ease, opacity 0.25s ease, padding 0.25s ease, border-color 0.25s ease;
-  }
-  body.chart-page .header.header-hidden {
-    max-height: 0; padding-top: 0; padding-bottom: 0; border-color: transparent;
-    transform: none; /* chart page collapses via max-height, not translateY */
   }
   body.chart-page .content {
     flex: 1; min-height: 0;
@@ -85,16 +74,13 @@
     flex: 1; min-height: 0; margin: 0; border: none;
     display: flex; flex-direction: column;
   }
-  /* The stage holds the scrolling viewport + the floating recenter button.
-     It flexes to fill whatever the panels leave behind — growing when they
-     collapse, shrinking when they expand. */
+  /* The stage holds the scrolling viewport + the floating recenter button. */
   body.chart-page .chart-stage {
     flex: 1; min-height: 0; position: relative;
     display: flex; flex-direction: column;
   }
   body.chart-page .chart-vp { flex: 1; min-height: 0; height: auto; }
 
-  /* Top/bottom panels are real layout items that collapse on idle */
   .chart-overlay-top, .chart-overlay-bottom {
     flex: 0 0 auto; background: var(--card); overflow: hidden;
   }
@@ -127,8 +113,8 @@
     position: sticky; top: 0; z-index: 100;
     transition: transform 0.25s ease;
   }
-  /* Scroll-direction auto-hide (non-chart pages only — the chart page has
-     its own idle-based auto-hide and doesn't use window scroll). */
+  /* Scroll-direction auto-hide — non-chart pages only; the chart page's
+     header/dock are always visible. */
   .header.header-hidden { transform: translateY(-100%); }
   .header-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; margin-bottom: 0.75rem; }
   .header-top.lib-brand { justify-content: flex-start; gap: 10px; align-items: center; margin-bottom: 0; }
@@ -620,15 +606,6 @@
        be reset or the buttons overflow the dock and get clipped. */
     margin: 0;
     padding: 8px 12px 10px;
-    /* Capped to the real measured height (--chart-navbtns-h, set in JS),
-       same reasoning as the chart-page header: an arbitrary max-height far
-       bigger than the content makes the collapse/reveal snap instead of
-       sliding smoothly. */
-    max-height: var(--chart-navbtns-h, 120px); overflow: hidden;
-    transition: max-height 0.25s ease, opacity 0.25s ease, padding 0.25s ease, border-color 0.25s ease;
-  }
-  .chart-dock .nav-btns.nav-btns-hidden {
-    max-height: 0; padding-top: 0; padding-bottom: 0; opacity: 0; border-color: transparent;
   }
   .chart-dock .nav-btn { padding: 11px; }
   .leg { display: flex; align-items: center; gap: 4px; }
