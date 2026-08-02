@@ -157,12 +157,15 @@ function rowRecap(row) {
 function recapHtml(row) {
   const flat = !!(PHASES[cur] && PHASES[cur].flatChart);
   const rs = isRSRow(row);
+  // Row-specific only — state what's true for THIS row, not a general
+  // rule covering both parities (flat patterns alternate RS/WS every row,
+  // so a blanket "odd rows.../even rows..." statement makes the reader
+  // work out which half applies to them; just say it directly instead).
   const headText = flat
-    ? 'Worked flat, bottom to top · odd rows (RS) read right → left, even rows (WS) read left → right'
+    ? `Row ${row} (${rs ? 'RS' : 'WS'}) · read ${rs ? 'right → left' : 'left → right'}, bottom to top`
     : 'Work Chart B in the round · read right → left, bottom to top';
-  const rowLabel = flat ? `Row ${row} (${rs ? 'RS' : 'WS'}):` : `Row ${row}:`;
   let html = `<div class="recap-head">${headText}</div>
-    <div class="recap-body"><strong>${rowLabel}</strong> ${rowRecap(row)}</div>`;
+    <div class="recap-body"><strong>Row ${row}:</strong> ${rowRecap(row)}</div>`;
 
   // Post-chart confirm step — the last step of the chart phase, surfaced
   // alongside the row instructions (same "what do I do now" panel) rather
