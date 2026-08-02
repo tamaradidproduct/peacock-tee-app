@@ -88,20 +88,31 @@ function centerOnCurrentRow() {
 
 // ─────────────────────────────────────────────
 // ROW RECAP — plain-language summary of the stitches in a row.
-// The chart is read right → left, so we reverse the stored (left → right)
-// cells, drop the no-stitch padding, run-length encode, then collapse any
-// consecutive repeating block into "*…* rep N times".
+//
+// Patterns worked IN THE ROUND (e.g. Peacock Tee) have only one kind of
+// row: always read right → left, always the RS-facing stitch names. The
+// stored chart array is left → right, so that case always reverses it.
+//
+// Patterns worked FLAT (`PHASES[cur].flatChart`, e.g. Frost Flower)
+// alternate sides every row: odd rows are RS (right → left, RS stitch
+// names), even rows are WS (left → right — the stored array is already
+// left → right, so no reverse — WS stitch names). See isRSRow().
 // ─────────────────────────────────────────────
-const STITCH_ABBR = { K: 'k', P: 'p', YO: 'yo', K2: 'k2tog', SK: 'ssk', M1: 'm1' };
+const STITCH_ABBR_RS = { K: 'k', P: 'p', YO: 'yo', K2: 'k2tog', SK: 'ssk', M1: 'm1' };
+const STITCH_ABBR_WS = { K: 'p', P: 'k', YO: 'yo', K2: 'p2tog', SK: 'ssp', M1: 'm1' };
 
-function rleStitches(types) {
+function isRSRow(row) {
+  return !(PHASES[cur] && PHASES[cur].flatChart) || row % 2 === 1;
+}
+
+function rleStitches(types, abbr) {
   const out = [];
   for (let i = 0; i < types.length; ) {
     let j = i;
     while (j < types.length && types[j] === types[i]) j++;
     const n = j - i, t = types[i];
-    if (t === 'K' || t === 'P') out.push(STITCH_ABBR[t] + n);
-    else out.push(n > 1 ? STITCH_ABBR[t] + ' ×' + n : STITCH_ABBR[t]);
+    if (t === 'K' || t === 'P') out.push(abbr[t] + n);
+    else out.push(n > 1 ? abbr[t] + ' ×' + n : abbr[t]);
     i = j;
   }
   return out;
@@ -136,14 +147,22 @@ function collapseRepeats(tokens) {
 }
 
 function rowRecap(row) {
-  const types = CHART_B[row - 1].filter(t => t !== 'E').reverse();
+  const rs = isRSRow(row);
+  let types = CHART_B[row - 1].filter(t => t !== 'E');
+  if (rs) types = types.reverse(); // RS: right → left. WS: already stored left → right.
   if (!types.length) return '';
-  return collapseRepeats(rleStitches(types)).join(', ');
+  return collapseRepeats(rleStitches(types, rs ? STITCH_ABBR_RS : STITCH_ABBR_WS)).join(', ');
 }
 
 function recapHtml(row) {
-  let html = `<div class="recap-head">Work Chart B in the round · read right → left, bottom to top</div>
-    <div class="recap-body"><strong>Row ${row}:</strong> ${rowRecap(row)}</div>`;
+  const flat = !!(PHASES[cur] && PHASES[cur].flatChart);
+  const rs = isRSRow(row);
+  const headText = flat
+    ? 'Worked flat, bottom to top · odd rows (RS) read right → left, even rows (WS) read left → right'
+    : 'Work Chart B in the round · read right → left, bottom to top';
+  const rowLabel = flat ? `Row ${row} (${rs ? 'RS' : 'WS'}):` : `Row ${row}:`;
+  let html = `<div class="recap-head">${headText}</div>
+    <div class="recap-body"><strong>${rowLabel}</strong> ${rowRecap(row)}</div>`;
 
   // Post-chart confirm step — the last step of the chart phase, surfaced
   // alongside the row instructions (same "what do I do now" panel) rather
