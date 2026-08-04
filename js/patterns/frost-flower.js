@@ -18,12 +18,10 @@
 //   blank = RS: k   / WS: p        dot = RS: p   / WS: k
 //   K2 (right-leaning) = RS: k2tog / WS: p2tog
 //   SK (left-leaning)  = RS: ssk   / WS: ssp
-// The chart grid itself (this data + its on-screen rendering) is therefore
-// accurate as-is. The row-recap strip under the chart is NOT yet flat-aware
-// — it always reads right→left and always calls K2/SK "k2tog"/"ssk" — so on
-// WS rows its plain-language text will be wrong (mirrored + wrong verb)
-// until chart.js gets a per-row RS/WS mode. Rely on the chart grid, not the
-// recap text, until that lands.
+// The `flatChart: true` flag on the ff-gauge phase below tells chart.js's
+// row-recap strip to flip both reading direction and stitch verbs on even
+// (WS) rows instead of always assuming RS, in the round (see isRSRow() in
+// chart.js).
 //
 // CHART_FF[0] = row 1 (cast-on row, worked first, displayed at the bottom).
 // CHART_FF[35] = row 36 (worked last, displayed at the top).
@@ -117,7 +115,7 @@ const FF_PHASES = [
   },
   {
     id:'ff-gauge', name:'Gauge swatch', desc:'Cast on 36 sts · Frost Flower motif · 36 rows, worked flat',
-    hasChart: true,
+    hasChart: true, flatChart: true,
     steps:[
       {id:'ffg1', text:'Block the swatch, measure its finished width, then multiply ×8 for finished chest circumference (plus however much positive ease you want — this pattern runs 4–15 cm of ease over bust measurement)', postChart:true},
     ]
